@@ -42,15 +42,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 5. 从Release下载预编译so库（替换原来在线编译OpenCV）
+      # 5. 从Release下载预编译so库（修复仓库名lzw，解决404报错）
       - name: Download prebuilt so library v1.0
         run: |
           mkdir native_libs
-          # 下载自定义引擎so
-          wget https://github.com/asdf13110791253/lzwapp/releases/download/v1.0/liblingmiao_engine.zip
+          # 下载自定义引擎so（仓库名改为 lzw）
+          wget https://github.com/asdf13110791253/lzw/releases/download/v1.0/liblingmiao_engine.zip
           unzip liblingmiao_engine.zip -d native_libs
-          # 下载OpenCV so
-          wget https://github.com/asdf13110791253/lzwapp/releases/download/v1.0/libopencv_java4.zip
+          # 下载OpenCV so（仓库名改为 lzw）
+          wget https://github.com/asdf13110791253/lzw/releases/download/v1.0/libopencv_java4.zip
           unzip libopencv_java4.zip -d native_libs
           # 创建jniLibs存放目录
           mkdir -p $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
