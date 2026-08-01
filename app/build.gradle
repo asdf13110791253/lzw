@@ -1,169 +1,78 @@
-import java.util.Base64
-import java.io.FileOutputStream
+- name: Download prebuilt so library v2.0
+  run: |
+    mkdir native_libs
 
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    kotlin("kapt")
-}
-
-val properties = java.util.Properties()
-val propsFile = project.rootProject.file("local.properties")
-if (propsFile.exists()) {
-    properties.load(propsFile.inputStream())
-}
-
-android {
-    namespace = "com.lingmiao.v2"
-    compileSdk = 34
-
-    defaultConfig {
-        applicationId = "com.lingmiao.v2"
-        minSdk = 28
-        targetSdk = 34
-        versionCode = 2
-        versionName = "2.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables { useSupportLibrary = true }
-
-        ndk { abiFilters.add("arm64-v8a") }
-
-        kapt {
-            arguments { arg("room.schemaLocation", "$projectDir/schemas") }
-        }
-
-        // 把 assets 下的 native 文件打进 APK
-        sourceSets["main"].jniLibs.srcDirs(
-            "src/main/jniLibs"
-        )
+    # 下载函数：带重试 + 文件类型校验 + 超时限制
+    download_file() {
+      local url="$1"
+      local output="$2"
+      local max_retries=5
+      for ((i=1; i<=max_retries; i++)); do
+        echo "📥 尝试下载 (第 $i 次): $url"
+        rm -f "$output"
+        # 增加30秒超时，防止无限卡死
+        if wget --timeout=30 --no-check-certificate -O "$output" "$url"; then
+          local filetype=$(file -b "$output" | head -1)
+          local filesize=$(stat -c%s "$output")
+          echo "📄 文件类型: $filetype, 大小: $filesize 字节"
+          # 判断是否为合法zip压缩包
+          if echo "$filetype" | grep -qi "Zip archive"; then
+            echo "✅ 下载成功且文件有效: $output"
+            return 0
+          else
+            echo "⚠️ 下载的不是有效 zip 文件（网页/错误页面），删除后重试"
+            rm -f "$output"
+          fi
+        else
+          echo "⚠️ 下载失败（网络/链接失效）"
+        fi
+        echo "⏳ 等待 5 秒后重试..."
+        sleep 5
+      done
+      echo "🚨 多次重试后仍失败: $output"
+      return 1
     }
 
-    // ── 签名配置 ──
-    signingConfigs {
-        create("release") {
-            val ksFile = file("../lingmiao.keystore")
-            if (ksFile.exists()) {
-                storeFile = ksFile
-                storePassword = "LingMiao2024!"
-                keyAlias = "lingmiao"
-                keyPassword = "LingMiao2024!"
-            } else {
-                // CI 会用 gradle.properties 注入的变量覆盖
-                storeFile = file(project.properties["storeFile"]?.toString() ?: "dummy.keystore")
-                storePassword = project.properties["storePassword"]?.toString() ?: ""
-                keyAlias = project.properties["keyAlias"]?.toString() ?: ""
-                keyPassword = project.properties["keyPassword"]?.toString() ?: ""
-            }
-        }
-    }
+    # 替换为你自己仓库真实有效的附件直链
+    download_file "https://github.com/user-attachments/files/30623868/liblingmiao_engine.zip" "liblingmiao_engine.zip" || exit 1
+    download_file "https://github.com/user-attachments/files/30623924/libopencv_java4.zip" "libopencv_java4.zip" || exit 1
 
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("release")
-        }
-        debug {
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
-    }
+    # 静默解压到临时目录native_libs
+    echo "===== 解压 liblingmiao_engine.zip ====="
+    unzip -qq -o liblingmiao_engine.zip -d native_libs
+    echo "===== 解压 libopencv_java4.zip ====="
+    unzip -qq -o libopencv_java4.zip -d native_libs
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+    # 打印完整目录结构，方便排错
+    echo "===== native_libs 完整目录结构 ====="
+    find native_libs -type f
 
-    kotlinOptions { jvmTarget = "17" }
+    # 对应你项目固定so存放路径 app/src/main/jniLibs/arm64-v8a
+    TARGET_JNI_DIR="$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a"
+    mkdir -p $TARGET_JNI_DIR
 
-    buildFeatures {
-        compose = true
-        buildConfig = true
-    }
+    # 优先复制arm64-v8a文件夹内so，无文件夹则全局搜索所有so复制
+    if ls native_libs/arm64-v8a/*.so >/dev/null 2>&1; then
+      cp native_libs/arm64-v8a/*.so $TARGET_JNI_DIR/
+    else
+      echo "⚠️ 未找到arm64-v8a子目录，全局检索所有so文件复制"
+      find native_libs -name "*.so" -exec cp {} $TARGET_JNI_DIR/ \;
+    fi
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    # 输出最终目录文件
+    echo "===== 最终 jniLibs 目录内容 ====="
+    ls -lh $TARGET_JNI_DIR
 
-    packaging {
-        resources {
-            excludes += listOf(
-                "/META-INF/{AL2.0,LGPL2.1}",
-                "/META-INF/DEPENDENCIES",
-                "/META-INF/LICENSE",
-                "/META-INF/LICENSE.txt",
-                "/META-INF/NOTICE",
-                "/META-INF/NOTICE.txt"
-            )
-        }
-        jniLibs {
-            useLegacyPackaging = false
-        }
-    }
-
-    // ── External Native Build (CMake) ──
-    // 如果 jni/ 目录存在 CMakeLists.txt，自动参与编译
-    val jniDir = file("src/main/jni")
-    if (jniDir.exists() && file("$jniDir/CMakeLists.txt").exists()) {
-        externalNativeBuild {
-            cmake {
-                path = file("$jniDir/CMakeLists.txt")
-                version = "3.22.1"
-            }
-        }
-        defaultConfig {
-            externalNativeBuild {
-                cmake {
-                    cppFlags "-std=c++17", "-O3", "-flto"
-                    arguments "-DANDROID_STL=c++_shared"
-                    abiFilters "arm64-v8a"
-                }
-            }
-        }
-    }
-}
-
-dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-
-    // Compose
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.9.0")
-
-    // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
-
-    // Lifecycle & ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
-
-    // TFLite (可选, 如果不用可以注释掉)
-    // implementation("org.tensorflow:tensorflow-lite:2.16.1")
-    // implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
-
-    // OpenCV (如果不用 Maven 版可以注释)
-    // implementation("org.opencv:opencv:4.9.0")
-
-    // Test
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
-}
+    # 严格校验两个必需so文件，缺失直接终止流程
+    cd $TARGET_JNI_DIR
+    if [ ! -f "liblingmiao_engine.so" ]; then
+      echo "❌ 致命错误：缺失 liblingmiao_engine.so"
+      ls -la
+      exit 1
+    fi
+    if [ ! -f "libopencv_java4.so" ]; then
+      echo "❌ 致命错误：缺失 libopencv_java4.so"
+      ls -la
+      exit 1
+    fi
+    echo "✅ v2.0版本校验完成：两个so文件全部就绪，可正常编译打包"
