@@ -13,11 +13,13 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 新增：给gradlew添加执行权限，解决许可被拒
-      - name: 授予脚本执行权限
-        run: chmod +x gradlew
+      # 自动生成完整gradle wrapper，补齐缺失的jar文件
+      - name: 修复Gradle Wrapper缺失
+        run: |
+          gradle wrapper --gradle-version 8.5
+          chmod +x gradlew
 
-      - name: 完整日志编译
+      - name: 编译打包APK
         run: ./gradlew :app:assembleDebug --stacktrace --info
 
       - name: 导出成品APK
