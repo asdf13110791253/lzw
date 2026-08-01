@@ -13,13 +13,12 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 官方action精准安装Gradle 8.4，不会版本错乱
-      - name: 安装指定Gradle 8.4
+      # 安装匹配要求的Gradle 8.7
+      - name: 安装Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.4
+          gradle-version: 8.7
 
-      # 直接全局gradle操作，完全避开破损的本地gradlew
       - name: 下载OpenCV 4.9 SDK
         run: |
           wget -O opencv-sdk.zip https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
