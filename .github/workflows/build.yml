@@ -13,12 +13,15 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      - name: 授予gradlew执行权限
-        run: chmod +x gradlew
+      # 安装系统Gradle 8.4，不用项目里破损的wrapper
+      - name: 安装系统Gradle 8.4
+        run: |
+          sudo apt update
+          sudo apt install gradle -y
+          gradle wrapper --gradle-version 8.4
 
-      # 新增：自动生成匹配8.4版本完整gradle-wrapper.jar，彻底解决类缺失报错
-      - name: 修复Gradle Wrapper 8.4
-        run: ./gradlew wrapper --gradle-version 8.4
+      - name: 授予脚本权限
+        run: chmod +x gradlew
 
       - name: 下载OpenCV 4.9 SDK
         run: |
@@ -31,7 +34,6 @@ jobs:
       - name: 查看项目模块任务
         run: ./gradlew tasks
 
-      # 指定app模块编译
       - name: 编译APP Debug安装包
         run: ./gradlew :app:assembleDebug
 
