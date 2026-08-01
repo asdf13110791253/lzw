@@ -13,10 +13,10 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 生成兼容项目的Gradle 8.10 wrapper
+      # 生成和AGP8.5.0匹配的Gradle 8.5 wrapper
       - name: 生成Gradle包装器
         run: |
-          gradle wrapper --gradle-version 8.10
+          gradle wrapper --gradle-version 8.5
           chmod +x gradlew
       # 清理旧构建缓存，防止版本残留冲突
       - name: 清理缓存
