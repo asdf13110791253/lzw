@@ -4,7 +4,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取仓库源码
+      - name: 拉取源码
         uses: actions/checkout@v4
 
       - name: 配置JDK17
@@ -13,17 +13,22 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 自动生成完整gradle wrapper，补齐缺失的jar文件
-      - name: 修复Gradle Wrapper缺失
+      # 生成兼容项目的Gradle 8.10 wrapper
+      - name: 生成Gradle包装器
         run: |
-          gradle wrapper --gradle-version 8.5
+          gradle wrapper --gradle-version 8.10
           chmod +x gradlew
+      # 清理旧构建缓存，防止版本残留冲突
+      - name: 清理缓存
+        run: ./gradlew clean
 
-      - name: 编译打包APK
+      # 编译Debug安装包
+      - name: 编译APK
         run: ./gradlew :app:assembleDebug --stacktrace --info
 
-      - name: 导出成品APK
+      # 上传打包成品
+      - name: 导出APK文件
         uses: actions/upload-artifact@v4
         with:
-          name: LingMiao_成品APK
+          name: LingMiao_APK
           path: app/build/outputs/apk/debug/
