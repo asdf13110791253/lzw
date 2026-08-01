@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 全局主主题 -->
+    <!-- 主APP主题 -->
     <style name="Theme.LingMiao" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">#2196F3</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="android:windowBackground">#0F0F1E</item>
     </style>
 
-    <!-- 无标题页面 -->
+    <!-- 无标题页面专用 -->
     <style name="Theme.LingMiao.NoActionBar" parent="Theme.LingMiao">
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <!-- 全屏引导页 -->
+    <!-- 全屏引导页主题 -->
     <style name="Theme.LingMiao.FullScreen" parent="Theme.LingMiao.NoActionBar">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
