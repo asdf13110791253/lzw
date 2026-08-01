@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 三角形瞄准标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,35L65,60L43,60z"/>
+    <!-- 圆心 -->
+    <path
+        android:fillColor="#FF7C4DFF"
+        android:pathData="M54,65m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0"/>
+</vector>
