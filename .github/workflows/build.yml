@@ -1,6 +1,5 @@
 name: Build LingMiao V2.0 APK
 
-# 触发条件：推送代码、手动点击运行
 on:
   push:
     branches: [main, master]
@@ -23,26 +22,36 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 3. 安装 Android SDK + NDK
+      # 3. 安装 Android SDK + NDK (修复了之前参数报错的问题)
       - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 34
-          build-tools-version: '34.0.0'
-          ndk-version: '27.0.12077973'
-          cmake-version: '3.22.1'
+          # 注意：新版的 setup-android action 参数名变了，这里必须用 packages 来指定
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+            ndk;27.0.12077973
+            cmdline-tools;latest
 
-      # 4. 缓存 Gradle 加速构建
+      # 4. 【关键修复】清理可能存在的损坏 Gradle 缓存
+      - name: Clean Gradle Cache
+        run: |
+          rm -rf ~/.gradle/caches/
+          rm -rf $GITHUB_WORKSPACE/.gradle/
+          echo "✅ 旧缓存已清理"
+
+      # 5. 缓存 Gradle 加速构建
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 5. 下载so库：多镜像+自动重试+目录调试+文件校验
+      # 6. 下载 so 库 (修复了之前的缩进错误和下载链接)
       - name: Download prebuilt so library v1.0
         run: |
           mkdir native_libs
@@ -76,7 +85,7 @@ jobs:
             return 1
           }
 
-          # ✅ 使用正确的 user-attachments 附件直链
+          # ✅ 使用正确的 user-attachments 附件直链 (请确认这两个链接在你的仓库里能直接下载)
           download_file "https://github.com/user-attachments/files/30623868/liblingmiao_engine.zip" "liblingmiao_engine.zip" || exit 1
           download_file "https://github.com/user-attachments/files/30623924/libopencv_java4.zip" "libopencv_java4.zip" || exit 1
 
@@ -117,7 +126,7 @@ jobs:
           fi
           echo "✅ 校验完成：两个so文件全部存在，可正常打包"
 
-      # 6. 校验TFLite模型文件
+      # 7. 校验TFLite模型文件
       - name: Ensure TFLite models are valid
         run: |
           cd $GITHUB_WORKSPACE/app/src/main/assets/models
@@ -133,17 +142,17 @@ jobs:
                   print(f'✅ {f} 正常')
           "
 
-      # 7. 给gradlew权限
+      # 8. 给gradlew权限
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 8. 编译未签名Release包
+      # 9. 编译未签名Release包
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 9. 校验APK体积20-24MB
+      # 10. 校验APK体积20-24MB
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -155,13 +164,13 @@ jobs:
           fi
           echo "APK_PATH=$APK" >> $GITHUB_ENV
 
-      # 10. 重命名安装包
+      # 11. 重命名安装包
       - name: Rename APK
         run: |
           cp ${{ env.APK_PATH }} $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
           ls -lh $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
 
-      # 11. 上传成品包
+      # 12. 上传成品包
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
