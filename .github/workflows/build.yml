@@ -4,19 +4,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: 拉取仓库源码
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: 配置JDK17（安卓34标准要求）
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
-          
-      - name: 安装Gradle 8.4
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: "8.4"
 
-      - name: 下载OpenCV 4.9 SDK
+      # 云端自动补全全套gradle wrapper，解决gradle-wrapper.jar缺失
+      - name: 生成完整Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.4
+
+      # 给编译脚本开启执行权限
+      - name: 授权gradlew脚本
+        run: chmod +x gradlew
+
+      # 下载可访问的OpenCV 4.9 SDK（修复404报错）
+      - name: 拉取OpenCV依赖库
         run: |
           wget -O opencv-sdk.zip https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
           unzip -q opencv-sdk.zip
@@ -24,11 +30,13 @@ jobs:
           mkdir -p ./opencv/src/main/jniLibs
           cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
-      - name: 编译Debug安装包
-        run: gradle assembleDebug
+      # 标准安卓编译命令，和Android Studio完全一致
+      - name: 编译Debug未签名APK
+        run: ./gradlew assembleDebug
 
-      - name: 导出APK
+      # 打包产出APK，供下载
+      - name: 上传编译完成的APK安装包
         uses: actions/upload-artifact@v4
         with:
-          name: LingMiao_APK安装包
+          name: LingMiao_成品APK
           path: app/build/outputs/apk/debug/app-debug.apk
