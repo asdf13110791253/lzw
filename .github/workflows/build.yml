@@ -42,24 +42,57 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 新增：镜像下载so库 + 文件存在校验，缺失直接终止流程
+      # 5. 下载so库：多镜像+自动重试+目录调试+文件校验
       - name: Download prebuilt so library v1.0
         run: |
           mkdir native_libs
-          # ghproxy镜像加速下载release文件
-          wget --no-check-certificate https://mirror.ghproxy.com/https://github.com/asdf13110791253/lzw/releases/download/v1.0/liblingmiao_engine.zip
+
+          # 下载函数：失败自动重试3次，依次尝试多个镜像
+          download_with_retry() {
+            local url="$1"
+            local output="$2"
+            local max_retries=3
+            local mirrors=(
+              "https://gh-proxy.com/${url#https://}"
+              "https://ghproxy.cn/${url#https://}"
+              "${url}"
+            )
+            for mirror_base in "${mirrors[@]}"; do
+              for ((i=1; i<=max_retries; i++)); do
+                echo "📥 尝试下载 (镜像: $mirror_base, 第 $i 次)"
+                if wget --no-check-certificate -O "$output" "$mirror_base"; then
+                  echo "✅ 下载成功: $output"
+                  return 0
+                fi
+                echo "⚠️ 下载失败，等待 3 秒后重试..."
+                sleep 3
+              done
+              echo "❌ 该镜像全部重试失败，切换下一个镜像"
+            done
+            echo "🚨 所有镜像和重试均失败: $output"
+            return 1
+          }
+
+          # 下载两个 zip 包
+          download_with_retry "https://github.com/asdf13110791253/lzw/releases/download/v1.0/liblingmiao_engine.zip" "liblingmiao_engine.zip" || exit 1
+          download_with_retry "https://github.com/asdf13110791253/lzw/releases/download/v1.0/libopencv_java4.zip" "libopencv_java4.zip" || exit 1
+
+          # 解压
           unzip liblingmiao_engine.zip -d native_libs
-          wget --no-check-certificate https://mirror.ghproxy.com/https://github.com/asdf13110791253/lzw/releases/download/v1.0/libopencv_java4.zip
           unzip libopencv_java4.zip -d native_libs
-          # 创建jniLibs目录
+
+          # 查看解压结构（调试用）
+          echo "===== native_libs 目录结构 ====="
+          find native_libs -type f
+
+          # 复制 .so 文件
           mkdir -p $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
-          # 复制so文件
-          cp native_libs/*.so $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
-          
-          # 列出文件方便日志查看
+          cp native_libs/arm64-v8a/*.so $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
+
+          # 列出文件
           ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
 
-          # 自动校验两个核心so文件，缺一个直接报错退出
+          # 校验
           cd $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
           if [ ! -f "liblingmiao_engine.so" ]; then
             echo "错误：缺失 liblingmiao_engine.so，下载/解压失败"
@@ -91,13 +124,17 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 8. 编译未签名Release包
+      # 8. 安装 bc（APK体积计算依赖）
+      - name: Install bc
+        run: sudo apt-get update && sudo apt-get install -y bc
+
+      # 9. 编译未签名Release包
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 9. 校验APK体积20-24MB
+      # 10. 校验APK体积20-24MB
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -105,17 +142,17 @@ jobs:
           SIZE_MB=$(echo "scale=2; $SIZE/1048576" | bc)
           echo "📦 APK 大小: ${SIZE_MB} MB"
           if [ $SIZE -lt 20971520 ] || [ $SIZE -gt 25165824 ]; then
-            echo "❌ 体积超出20-24MB范围，可忽略继续使用"
+            echo "⚠️ 体积超出20-24MB范围，可忽略继续使用"
           fi
           echo "APK_PATH=$APK" >> $GITHUB_ENV
 
-      # 10. 重命名安装包
+      # 11. 重命名安装包
       - name: Rename APK
         run: |
           cp ${{ env.APK_PATH }} $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
           ls -lh $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
 
-      # 11. 上传成品包
+      # 12. 上传成品包
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
