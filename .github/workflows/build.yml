@@ -13,16 +13,13 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 安装系统Gradle 8.4，不用项目里破损的wrapper
-      - name: 安装系统Gradle 8.4
-        run: |
-          sudo apt update
-          sudo apt install gradle -y
-          gradle wrapper --gradle-version 8.4
+      # 官方action精准安装Gradle 8.4，不会版本错乱
+      - name: 安装指定Gradle 8.4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.4
 
-      - name: 授予脚本权限
-        run: chmod +x gradlew
-
+      # 直接全局gradle操作，完全避开破损的本地gradlew
       - name: 下载OpenCV 4.9 SDK
         run: |
           wget -O opencv-sdk.zip https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
@@ -32,10 +29,10 @@ jobs:
           cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
       - name: 查看项目模块任务
-        run: ./gradlew tasks
+        run: gradle tasks
 
       - name: 编译APP Debug安装包
-        run: ./gradlew :app:assembleDebug
+        run: gradle :app:assembleDebug
 
       - name: 导出成品APK
         uses: actions/upload-artifact@v4
