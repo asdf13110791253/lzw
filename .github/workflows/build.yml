@@ -13,9 +13,7 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      - name: 生成完整Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.4
-
+      # 直接使用仓库自带gradlew，不再云端生成wrapper（删除冲突命令）
       - name: 授予gradlew执行权限
         run: chmod +x gradlew
 
@@ -27,10 +25,10 @@ jobs:
           mkdir -p ./opencv/src/main/jniLibs
           cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
-      - name: 查看项目模块任务（排查用）
+      - name: 查看项目模块任务
         run: ./gradlew tasks
 
-      # 关键修改：指定app模块编译，解决任务找不到报错
+      # 指定app模块编译
       - name: 编译APP Debug安装包
         run: ./gradlew :app:assembleDebug
 
