@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 中文翻译与主文件一致，作为 zh 的备用 -->
+    <string name="app_name">灵喵</string>
+    <string name="main_title">灵喵 LingMiao V2.0</string>
+    <string name="btn_overlay_on">开启悬浮窗</string>
+    <string name="btn_overlay_off">关闭悬浮窗</string>
+    <string name="btn_calibrate">四角校准</string>
+    <string name="btn_settings">高级设置</string>
+    <string name="btn_guide">新手引导</string>
+    <string name="status_running">运行中</string>
+    <string name="status_stopped">已停止</string>
+    <string name="calibrate_hint">拖动四角锚点对齐球桌四角</string>
+    <string name="settings_title">高级设置</string>
+    <string name="guide_welcome">欢迎使用灵喵 LingMiao V2.0</string>
+    <string name="usage_title">使用说明</string>
+    <string name="usage_1">1. 如果截图权限按应用单独授权，请选择你当前正在运行的台球游戏</string>
+    <string name="usage_2">2. 桌布请尽量精确对齐球桌内缘，辅助线会更稳定</string>
+    <string name="usage_3">3. 系统设置相关入口已放在下方，需要时再手动处理即可</string>
+    <string name="sys_setting_title">系统设置建议</string>
+    <string name="sys_setting_desc">为避免悬浮服务被系统回收，建议手动加入电池优化白名单</string>
+    <string name="sys_battery_btn">电池优</string>
+    <string name="sys_app_btn">应用系</string>
+    <string name="launch_title">启动悬浮辅助</string>
+    <string name="launch_desc">当前将以竖版方式启动悬浮辅助，完成必要授权后即可直接进入</string>
+    <string name="launch_ready">Ready</string>
+    <string name="launch_mode">当前模式</string>
+    <string name="launch_vertical">竖版模式</string>
+    <string name="launch_horizontal">横版模式</string>
+    <string name="launch_flow">授权流程</string>
+    <string name="launch_flow_1">1. 检查悬浮窗权限</string>
+    <string name="launch_flow_2">2. 申请录屏权限</string>
+    <string name="launch_flow_3">3. 自动启动悬浮辅助服务</string>
+    <string name="launch_start_btn">开始授权并启动悬浮</string>
+    <string name="launch_start_desc">点击后仅按必要顺序申请权限，不做额外强打扰弹窗</string>
+    <string name="bank_title">翻袋方案说明</string>
+    <string name="bank_comp_desc">角度补偿模式：模拟真实反弹角度</string>
+    <string name="bank_mirror_desc">镜像反弹模式：入射角等于出射角</string>
+    <string name="confirm_before_launch">启动前确认</string>
+    <string name="confirm_game_open">请保持目标游戏已打开，并确保系统未限制本应用显示悬浮窗</string>
+    <string name="confirm_manual">如果系统没有直接跳到权限页，可以在应用详情页手动开启悬浮窗权限</string>
+    <string name="screen_record_title">使用"灵喵"录制或共享屏幕</string>
+    <string name="screen_record_desc">录制或共享屏幕时，灵喵将获取您所选应用内的所有内容，包括音频、密码、通知等敏感信息</string>
+    <string name="screen_record_range">共享或录制的范围</string>
+    <string name="screen_record_continue">继续</string>
+</resources>
