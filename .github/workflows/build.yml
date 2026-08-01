@@ -13,7 +13,6 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      # 安装匹配要求的Gradle 8.7
       - name: 安装Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -23,7 +22,7 @@ jobs:
         run: |
           wget -O opencv-sdk.zip https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
           unzip -q opencv-sdk.zip
-          cp -r OpenCV-android-sdk/sdk/java ./opencv
+          mv OpenCV-android-sdk/sdk/java ./opencv
           mkdir -p ./opencv/src/main/jniLibs
           cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
