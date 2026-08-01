@@ -46,6 +46,12 @@
             </intent-filter>
         </activity>
 
+        <!-- 激活页面（已关闭验证逻辑，必须注册防止跳转报错） -->
+        <activity
+            android:name=".ui.ActivationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LingMiao.NoActionBar" />
+
         <!-- 新手引导 -->
         <activity
             android:name=".ui.GuideActivity"
