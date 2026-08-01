@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.lingmiao.v2.App
+import com.lingmiao.v2.LingMiaoApp
 import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
