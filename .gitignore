@@ -1,0 +1,34 @@
+# Android
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Keystore
+*.keystore
+*.jks
+
+# APK
+*.apk
+*.aab
+
+# Native
+*.so
+!app/src/main/jniLibs/**/*.so
+
+# Models (large binary)
+app/src/main/assets/models/*.tflite
+app/src/main/assets/cascades/*.xml
+
+# Logs
+*.log
+logs/
+
+# Kotlin
+.kotlin/
