@@ -11,7 +11,6 @@ jobs:
           java-version: '17'
           distribution: temurin
           
-      # 云端全局安装gradle，直接用系统gradle编译，不依赖项目自带gradlew
       - name: 安装Gradle 8.4
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -25,8 +24,7 @@ jobs:
           mkdir -p ./opencv/src/main/jniLibs
           cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
-      # 直接调用系统gradle，不再用./gradlew
-      - name: 编译Debug包
+      - name: 编译Debug安装包
         run: gradle assembleDebug
 
       - name: 导出APK
