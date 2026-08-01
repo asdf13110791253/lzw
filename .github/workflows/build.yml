@@ -18,8 +18,8 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: 编译Debug安装包
-        run: gradle :app:assembleDebug
+      - name: 完整日志编译
+        run: gradle :app:assembleDebug --warning-mode all --stacktrace
 
       - name: 导出成品APK
         uses: actions/upload-artifact@v4
