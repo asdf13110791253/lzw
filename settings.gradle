@@ -14,4 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "LingMiao"
 include(":app")
-include(":opencv")
