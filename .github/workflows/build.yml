@@ -13,6 +13,10 @@ jobs:
           java-version: '17'
           distribution: temurin
 
+      # 新增：给gradlew添加执行权限，解决许可被拒
+      - name: 授予脚本执行权限
+        run: chmod +x gradlew
+
       - name: 完整日志编译
         run: ./gradlew :app:assembleDebug --stacktrace --info
 
@@ -20,4 +24,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LingMiao_成品APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/
