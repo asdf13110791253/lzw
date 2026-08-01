@@ -13,13 +13,8 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      - name: 安装Gradle 8.7
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.7
-
       - name: 完整日志编译
-        run: gradle :app:assembleDebug --warning-mode all --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace --info
 
       - name: 导出成品APK
         uses: actions/upload-artifact@v4
