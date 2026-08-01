@@ -42,48 +42,23 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 5. 编译裁剪版 OpenCV
-      - name: Download OpenCV source
+      # 5. 从Release下载预编译so库（替换原来在线编译OpenCV）
+      - name: Download prebuilt so library v1.0
         run: |
-          cd /opt
-          wget -q https://github.com/opencv/opencv/archive/4.9.0.tar.gz -O opencv.tar.gz
-          tar xzf opencv.tar.gz
-          mv opencv-4.9.0 opencv
-          echo "OPENCV_SRC=/opt/opencv" >> $GITHUB_ENV
-
-      - name: Build minimal OpenCV (arm64-v8a, core+imgproc only)
-        run: |
-          cd /opt/opencv
-          mkdir -p build_android && cd build_android
-          cmake \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-28 \
-            -DBUILD_LIST=core,imgproc \
-            -DBUILD_opencv_java=ON \
-            -DBUILD_ANDROID_PROJECTS=OFF \
-            -DBUILD_TESTS=OFF \
-            -DBUILD_PERF_TESTS=OFF \
-            -DBUILD_EXAMPLES=OFF \
-            -DWITH_OPENCL=OFF \
-            -DWITH_CUDA=OFF \
-            -DWITH_IPP=OFF \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -flto -fvisibility=hidden" \
-            -GNinja ..
-          ninja -j$(nproc)
-          echo "OPENCV_SO=$(pwd)/lib/libopencv_java4.so" >> $GITHUB_ENV
-          ls -lh $(pwd)/lib/libopencv_java4.so
-
-      # 6. 把编译好的 OpenCV so 放进工程
-      - name: Place .so files into project
-        run: |
+          mkdir native_libs
+          # 下载自定义引擎so
+          wget https://github.com/asdf13110791253/lzwapp/releases/download/v1.0/liblingmiao_engine.zip
+          unzip liblingmiao_engine.zip -d native_libs
+          # 下载OpenCV so
+          wget https://github.com/asdf13110791253/lzwapp/releases/download/v1.0/libopencv_java4.zip
+          unzip libopencv_java4.zip -d native_libs
+          # 创建jniLibs存放目录
           mkdir -p $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
-          cp ${{ env.OPENCV_SO }} $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libopencv_java4.so
-          echo "=== OpenCV so 文件 ==="
+          # 复制所有so文件到项目
+          cp native_libs/*.so $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
           ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
 
-      # 7. 校验TFLite模型文件
+      # 6. 校验TFLite模型文件
       - name: Ensure TFLite models are valid
         run: |
           cd $GITHUB_WORKSPACE/app/src/main/assets/models
@@ -99,17 +74,17 @@ jobs:
                   print(f'✅ {f} 正常')
           "
 
-      # 8. 给gradlew权限
+      # 7. 给gradlew权限
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 9. 编译未签名Release包
+      # 8. 编译未签名Release包
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 10. 校验APK体积20-24MB
+      # 9. 校验APK体积20-24MB
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -121,13 +96,13 @@ jobs:
           fi
           echo "APK_PATH=$APK" >> $GITHUB_ENV
 
-      # 11. 重命名安装包
+      # 10. 重命名安装包
       - name: Rename APK
         run: |
           cp ${{ env.APK_PATH }} $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
           ls -lh $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
 
-      # 12. 上传成品包
+      # 11. 上传成品包
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
