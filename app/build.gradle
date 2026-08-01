@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt' // 新增，Room数据库必备
 }
 
 android {
@@ -53,6 +54,12 @@ dependencies {
 
     // 生命周期
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+
+    // Room 数据库（你项目用到的本地数据库）
+    implementation "androidx.room:room-runtime:2.6.1"
+    kapt "androidx.room:room-compiler:2.6.1"
 
     // OpenCV（配套你打包脚本）
     implementation project(path: ':opencv')
