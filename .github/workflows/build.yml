@@ -4,32 +4,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取源码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 配置JDK17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
-          cache: gradle
 
-      - name: 下载配置OpenCV4.8
+      - name: 下载可用OpenCV 4.9 Android SDK
         run: |
-          wget -O opencv-sdk.zip https://github.com/opencv/releases/download/4.8.0/opencv-4.8.0-android-sdk.zip
+          wget -O opencv-sdk.zip https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
           unzip -q opencv-sdk.zip
-          mkdir -p opencv/src/main/java
-          mkdir -p opencv/src/main/jniLibs/arm64-v8a
-          cp -r OpenCV-android-sdk/sdk/java/* ./opencv/src/main/java/
-          cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a/* ./opencv/src/main/jniLibs/arm64-v8a/
+          cp -r OpenCV-android-sdk/sdk/java ./opencv
+          mkdir -p ./opencv/src/main/jniLibs
+          cp -r OpenCV-android-sdk/sdk/native/libs/arm64-v8a ./opencv/src/main/jniLibs/
 
-      - name: Gradle打包Debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+      - name: 赋予编译脚本权限
+        run: chmod +x gradlew
 
-      - name: 上传编译好的APK
+      - name: 编译Debug安装包
+        run: ./gradlew assembleDebug
+
+      - name: 导出APK
         uses: actions/upload-artifact@v4
         with:
-          name: LingMiao-未签名安装包
+          name: LingMiao_APK安装包
           path: app/build/outputs/apk/debug/app-debug.apk
