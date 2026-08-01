@@ -1,0 +1,16 @@
+TFLITE_BALL_DETECT_V2_PLACEHOLDER
+model_version: 2
+input_shape: [1, 256, 256, 3]
+output_shape: [1, 84, 84, 3]
+num_classes: 8  # cue + 7 colored balls
+anchor_boxes: 3
+score_threshold: 0.35
+nms_iou_threshold: 0.45
+description: "Ball detection model v2 - YOLO-style, trained on billiards screenshots"
+training_dataset: "billiards_screenshots_v2_5000samples"
+quantization: "int8"
+input_type: "uint8"
+output_type: "float32"
+NOTE: This is a placeholder file. Replace with actual trained .tflite model before release.
+     Actual model expected size: ~1.2MB (quantized int8)
+     Training pipeline: see docs/model_training.md

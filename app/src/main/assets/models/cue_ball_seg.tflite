@@ -1,0 +1,12 @@
+TFLITE_CUE_BALL_SEG_PLACEHOLDER
+model_version: 1
+input_shape: [1, 128, 128, 3]
+output_shape: [1, 128, 128, 1]
+description: "Cue ball segmentation model - U-Net style, outputs binary mask"
+training_dataset: "cue_ball_masks_v1_5000samples"
+quantization: "int8"
+input_type: "uint8"
+output_type: "float32"
+NOTE: This is a placeholder file. Replace with actual trained .tflite model before release.
+     Actual model expected size: ~1.5MB (quantized int8)
+     Used for precise cue ball center detection when multiple white objects exist

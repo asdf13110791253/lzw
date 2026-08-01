@@ -1,0 +1,14 @@
+TFLITE_BALL_CLASSIFY_PLACEHOLDER
+model_version: 1
+input_shape: [1, 64, 64, 3]
+output_shape: [1, 16]
+num_classes: 16  # cue + 7 solid + 7 striped + unknown + background
+score_threshold: 0.50
+description: "Ball classification model - identifies ball number/type from cropped patch"
+training_dataset: "ball_patches_v1_20000samples"
+quantization: "int8"
+input_type: "uint8"
+output_type: "float32"
+NOTE: This is a placeholder file. Replace with actual trained .tflite model before release.
+     Actual model expected size: ~800KB (quantized int8)
+     Classes: 0=cue, 1-7=solid, 8-14=striped, 15=unknown

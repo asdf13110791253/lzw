@@ -1,0 +1,13 @@
+TFLITE_POCKET_DETECT_PLACEHOLDER
+model_version: 1
+input_shape: [1, 192, 192, 3]
+output_shape: [1, 6, 4]  # 6 pockets x [x, y, w, h]
+description: "Pocket detection model - detects 6 pocket positions on table"
+training_dataset: "pocket_annotations_v1_3000samples"
+quantization: "int8"
+input_type: "uint8"
+output_type: "float32"
+NOTE: This is a placeholder file. Replace with actual trained .tflite model before release.
+     Actual model expected size: ~600KB (quantized int8)
+     Output format: [x_center, y_center, width, height] normalized 0-1
+     Order: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
