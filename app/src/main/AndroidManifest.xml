@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.lingmiao.v2"> <!-- ✅ 关键修正1：与 namespace 保持一致 -->
+    package="com.lingmiao.v2">
 
     <!-- ===== 核心权限 ===== -->
     <!-- 悬浮窗 -->
@@ -10,7 +10,7 @@
     <!-- 前台服务（Android 14+ 必须细分类型） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" /> <!-- ✅ 关键修正2：保活专用 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- 通知 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -29,16 +29,14 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
-        android:name=".App" <!-- ✅ 关键修正3：与你的 Application 类名一致 -->
+        android:name=".App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.LingMiao"
-        android:largeHeap="true"
-        android:requestLegacyExternalStorage="true" <!-- ✅ Android 10+ 文件兼容 -->
-        tools:targetApi="34">
+        android:largeHeap="true">
 
         <!-- 主界面 -->
         <activity
@@ -88,12 +86,12 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- ✅ 前台保活服务（Android 14+ 必须用 specialUse） -->
+        <!-- 前台保活服务（Android 14+ 必须用 specialUse） -->
         <service
             android:name=".service.KeepAliveService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            android:stopWithTask="false"> <!-- ✅ 任务管理器划掉不杀 -->
+            android:stopWithTask="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="保活与辅助功能" />
@@ -111,7 +109,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ✅ 必须：MediaProjection 回调 Activity（不显示UI） -->
+        <!-- MediaProjection 回调 Activity（不显示UI） -->
         <activity
             android:name=".ui.MediaProjectionRequestActivity"
             android:exported="false"
