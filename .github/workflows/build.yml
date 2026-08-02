@@ -1,6 +1,6 @@
 name: Build LingMiao V2.0 APK
 
-# ✅ 消除 Node.js 20 黄色警告
+# ✅ 消除 Node.js 20 黄色警告（全局生效）
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -26,29 +26,37 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # 3. 【核心】用 Gradle 官方 action（自动处理 NDK 下载+缓存）
-      - name: Setup Gradle & NDK
+      # 3. 【核心修复】Setup Gradle (不再强制指定版本，使用Wrapper)
+      # 这会读取 gradle-wrapper.properties，并自动验证 gradle-wrapper.jar
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # 4. 安装 bc（APK 体积计算用）
-      - name: Install bc
+      # 4. 安装 Android NDK (你的 Native 库必需)
+      - name: Setup Android NDK
+        uses: android-actions/setup-android-ndk@v1
+        with:
+          ndk-version: r26b # 推荐使用稳定的 r26b 版本，适配大多数项目
+
+      # 5. 安装 bc 和 python3 (APK体积计算 & TFLite校验用)
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq bc
+          sudo apt-get install -y -qq bc python3
 
-      # 5. 确认 Android SDK 就绪（ubuntu-latest 自带）
+      # 6. 确认 Android SDK 就绪
       - name: Verify Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
+          # 静默接受所有许可协议
+          yes | sdkmanager --licenses > /dev/null
+          # 确保构建所需的 Platform 和 Build-Tools 存在
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
           echo "✅ Android SDK 基础包就绪"
 
-      # 6. 校验 Native 库
+      # 7. 校验 Native 库 (.so文件)
       - name: Verify native libraries
         run: |
           echo "===== 检查 jniLibs 目录 ====="
@@ -60,7 +68,7 @@ jobs:
           fi
           echo "✅ liblingmiao_engine.so 存在"
 
-      # 7. 校验 TFLite 模型
+      # 8. 校验 TFLite 模型
       - name: Ensure TFLite models are valid
         run: |
           MODELS_DIR="$GITHUB_WORKSPACE/app/src/main/assets/models"
@@ -79,32 +87,36 @@ jobs:
             "
           fi
 
-      # 8. gradlew 权限
+      # 9. gradlew 权限
       - name: Make gradlew executable
         run: chmod +x "$GITHUB_WORKSPACE/gradlew"
 
-      # 9. 编译 Release APK
+      # 10. 编译 Release APK
       - name: Build Release APK
         run: |
           cd "$GITHUB_WORKSPACE"
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 10. APK 体积校验
+      # 11. APK 体积校验
       - name: APK Size Check
         run: |
           APK=$(find "$GITHUB_WORKSPACE/app/build/outputs/apk/release" -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "❌ APK 文件未生成！"
+            exit 1
+          fi
           SIZE=$(stat -c%s "$APK")
           SIZE_MB=$(echo "scale=2; $SIZE/1048576" | bc)
           echo "📦 APK 大小: ${SIZE_MB} MB"
           echo "APK_PATH=$APK" >> "$GITHUB_ENV"
 
-      # 11. 重命名
+      # 12. 重命名
       - name: Rename APK
         run: |
           cp "${{ env.APK_PATH }}" "$GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk"
           ls -lh "$GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk"
 
-      # 12. 上传
+      # 13. 上传
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
