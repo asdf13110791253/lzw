@@ -23,7 +23,10 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17", "-O3", "-flto")
-                arguments("-DANDROID_STL=c++_shared")
+                arguments(
+                    "-DANDROID_STL=c++_shared",
+                    "-DOPENCV_SDK_PATH=$System.env.OPENCV_SDK_PATH" // ✅ 关键：传递 OpenCV 路径给 CMake
+                )
                 abiFilters("arm64-v8a")
             }
         }
@@ -99,12 +102,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // ✅ OpenCV 4.9.0（Maven Central 官方包 + Prefab）
+    // ✅ OpenCV 4.9.0（Maven Central 官方包）
     implementation("org.opencv:opencv:4.9.0")
 }
 
-// ✅✅✅ 关键修复：强制锁定 Compose Compiler 版本
-// 防止某个传递依赖把 compiler 降级到 1.3.2，导致与 Kotlin 1.9.24 冲突
+// ✅ 强制锁定 Compose Compiler 版本，防止被传递依赖降级
 configurations.all {
     resolutionStrategy {
         force("androidx.compose.compiler:compiler:1.5.14")
