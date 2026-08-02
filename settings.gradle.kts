@@ -1,9 +1,5 @@
 pluginManagement {
     repositories {
-        // ✅ 阿里云镜像（加速插件下载，必须放最前面）
-        maven("https://maven.aliyun.com/repository/public")
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -16,14 +12,12 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // ✅ PREFER_SETTINGS：允许项目级仓库存在，不报错
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
-        // ✅ 阿里云镜像（加速依赖下载，必须放最前面）
-        maven("https://maven.aliyun.com/repository/public")
-        maven("https://maven.aliyun.com/repository/google")
         google()
         mavenCentral()
-        // ✅ JitPack 留着备用
+        // ✅ JitPack：OpenCV 轻量包在这里
         maven { url = uri("https://jitpack.io") }
     }
 }
