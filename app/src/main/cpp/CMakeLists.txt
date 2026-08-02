@@ -1,16 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project("lingmiao")
 
-set(OPENCV_SDK_PATH "$ENV{OPENCV_SDK_PATH}")
-if(NOT EXISTS "${OPENCV_SDK_PATH}")
-    message(FATAL_ERROR "❌ OpenCV SDK not found at: ${OPENCV_SDK_PATH}")
-endif()
-
-set(OpenCV_DIR "${OPENCV_SDK_PATH}/sdk/native/jni")
-find_package(OpenCV REQUIRED)
-
-message(STATUS "OpenCV Include Dir: ${OpenCV_INCLUDE_DIRS}")
-message(STATUS "OpenCV Libraries: ${OpenCV_LIBS}")
+# ✅ 通过 prefab 查找 OpenCV（来自 org.opencv:opencv:4.9.0 的 AAR）
+find_package(OpenCV REQUIRED COMPONENTS OpenCV::opencv_java4)
 
 add_library(
     native-lib
@@ -18,15 +10,9 @@ add_library(
     native-lib.cpp
 )
 
-target_include_directories(
-    native-lib
-    PRIVATE
-    ${OpenCV_INCLUDE_DIRS}
-)
-
 target_link_libraries(
     native-lib
-    ${OpenCV_LIBS}
+    OpenCV::opencv_java4
     android
     log
     jnigraphics
