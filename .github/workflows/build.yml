@@ -25,13 +25,26 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # 3. 安装 Android cmdline-tools (修复 127 错误)
+      # 3. 【关键修复】安装 Android cmdline-tools
+      # 注意：这里加了 rm -rf 命令，不管以前有什么残留，统统删掉再建，保证不会报错！
       - name: Install Android cmdline-tools
         run: |
+          # 强制删除可能存在的旧文件夹，清理战场
+          rm -rf $ANDROID_HOME/cmdline-tools/latest
+          
+          # 重新创建目录
           mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          
+          # 记录环境变量
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          
+          # 开始下载和解压
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmd.zip
           unzip -q /tmp/cmd.zip -d /tmp/cmd
           mv /tmp/cmd/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+          
+          # 配置环境变量
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       # 4. 安装 SDK & NDK
@@ -41,17 +54,12 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      # 5. 【关键】直接安装并使用系统自带的 Gradle (绕过 wrapper)
-      - name: Setup System Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.5" # 明确指定一个版本，确保环境稳定
-
-      # 6. 开始编译 (注意：这里用的是 gradle，不是 ./gradlew)
+      # 5. 【核心改动】直接使用系统自带的 Gradle 来编译
+      # 这样就完全不需要 ./gradlew 这个容易丢的文件了！
       - name: Build Release APK
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      # 7. 上传成品
+      # 6. 上传成品
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
