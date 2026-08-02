@@ -7,6 +7,9 @@ android {
     namespace = "com.lingmiao.v2"
     compileSdk = 34
 
+    // ✅ 明确指定 NDK 版本（和 CI 安装的 25.2.9519653 对齐）
+    ndkVersion = "25.2.9519653"
+
     defaultConfig {
         applicationId = "com.lingmiao.v2"
         minSdk = 24
@@ -25,7 +28,7 @@ android {
                 cppFlags("-std=c++17", "-O3", "-flto")
                 arguments(
                     "-DANDROID_STL=c++_shared",
-                    "-DOPENCV_SDK_PATH=$System.env.OPENCV_SDK_PATH" // ✅ 关键：传递 OpenCV 路径给 CMake
+                    "-DOPENCV_SDK_PATH=$System.env.OPENCV_SDK_PATH"
                 )
                 abiFilters("arm64-v8a")
             }
@@ -68,7 +71,6 @@ android {
         jvmTarget = "17"
     }
 
-    // ✅ Kotlin 1.9.24 官方对应 Compose Compiler 1.5.14
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
@@ -94,7 +96,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // ✅ Compose BOM（统一管理 Compose 库版本）
+    // ✅ Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -102,11 +104,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // ✅ OpenCV 4.9.0（Maven Central 官方包）
+    // ✅ OpenCV 4.9.0
     implementation("org.opencv:opencv:4.9.0")
 }
 
-// ✅ 强制锁定 Compose Compiler 版本，防止被传递依赖降级
+// ✅ 强制锁定 Compose Compiler 版本
 configurations.all {
     resolutionStrategy {
         force("androidx.compose.compiler:compiler:1.5.14")
