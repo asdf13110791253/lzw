@@ -28,13 +28,12 @@ target_include_directories(
     ${OpenCV_INCLUDE_DIRS}
 )
 
-# ✅✅✅ 关键修复：加上 jnigraphics
-# AndroidBitmap_getInfo / lockPixels / unlockPixels 都在这个库里
+# ✅✅✅ 关键：jnigraphics 必须加在最后
 target_link_libraries(
     native-lib
     ${OpenCV_LIBS}
     android
     log
     c++_shared
-    jnigraphics    # ← 就加这一行！
+    jnigraphics
 )
