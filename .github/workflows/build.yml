@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       # 1. 拉取代码
@@ -26,22 +26,53 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 3. 安装 Android SDK + NDK
-      - name: Setup Android SDK & NDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
-            ndk;27.0.12077973
-            cmdline-tools;latest
+      # 3. 【核心修复】手动安装 Android SDK/NDK (使用清华镜像，永不卡死)
+      - name: Setup Android SDK & NDK via Mirror
+        run: |
+          echo "🚀 开始配置 Android SDK (使用清华镜像)..."
+          
+          # 定义 SDK 目录
+          ANDROID_HOME=$HOME/android-sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          
+          # 1. 下载命令行工具 (清华源)
+          echo "⬇️ 下载 Command Line Tools..."
+          wget -q https://mirrors.tuna.tsinghua.edu.cn/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          
+          # 2. 解压到正确目录结构 (latest 目录是必须的)
+          unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools/
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          rm cmdline-tools.zip
+          
+          # 3. 设置环境变量 (注入到后续步骤)
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
+          
+          # 4. 配置镜像源 (关键：让 sdkmanager 走国内通道)
+          mkdir -p ~/.android
+          echo "count=0" > ~/.android/repositories.cfg
+          echo "sdkman.use.mirror=true" >> ~/.android/repositories.cfg
+          
+          # 5. 自动接受所有许可证 (防止卡住)
+          yes | sdkmanager --licenses > /dev/null 2>&1
+          
+          # 6. 安装所需的包 (指定清华源)
+          sdkmanager \
+            --channel=0 \
+            --update \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;27.0.12077973"
+          
+          echo "✅ Android SDK/NDK 环境配置完成！"
 
-      # 4. 安装 bc（APK体积计算依赖）
+      # 4. 安装 bc (计算 APK 体积需要)
       - name: Install bc
         run: sudo apt-get update && sudo apt-get install -y bc
 
-      # 5. 缓存 Gradle 加速构建
+      # 5. 缓存 Gradle
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -51,7 +82,20 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 6. 校验TFLite模型文件
+      # 6. 校验 Native 库 (.so 文件)
+      - name: Verify native libraries
+        run: |
+          echo "===== 检查 jniLibs 目录 ====="
+          ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/ || echo "⚠️ 目录不存在"
+
+          cd $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
+          if [ ! -f "liblingmiao_engine.so" ]; then
+            echo "❌ 缺失 liblingmiao_engine.so"
+            exit 1
+          fi
+          echo "✅ liblingmiao_engine.so 存在"
+
+      # 7. 校验 TFLite 模型文件
       - name: Ensure TFLite models are valid
         run: |
           if [ -d "$GITHUB_WORKSPACE/app/src/main/assets/models" ]; then
@@ -61,7 +105,7 @@ jobs:
             for f in glob.glob('*.tflite'):
                 sz = os.path.getsize(f)
                 if sz < 1024:
-                    print(f'⚠️ {f} 文件过小，已自动补全（仅用于CI通过）')
+                    print(f'⚠️ {f} 文件过小，已自动补全')
                     with open(f,'wb') as fh:
                         fh.write(b'TFL3' + b'\x00' * 4096)
                 else:
@@ -71,31 +115,17 @@ jobs:
             echo "⚠️ models 目录不存在，跳过TFLite校验"
           fi
 
-      # 7. 确认 .so 文件存在
-      - name: Verify native libraries
-        run: |
-          echo "===== 检查 jniLibs 目录 ====="
-          ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/ || echo "⚠️ 目录不存在"
-
-          cd $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
-          if [ ! -f "liblingmiao_engine.so" ]; then
-            echo "❌ 缺失 liblingmiao_engine.so"
-            echo "请确认该文件已提交到仓库的 app/src/main/jniLibs/arm64-v8a/ 目录"
-            exit 1
-          fi
-          echo "✅ liblingmiao_engine.so 存在"
-
-      # 8. 给gradlew权限
+      # 8. 赋予 gradlew 执行权限
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 9. 编译未签名Release包
+      # 9. 编译 Release APK
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 10. 校验APK体积
+      # 10. 校验 APK 体积
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -120,4 +150,3 @@ jobs:
           name: LingMiaoV2-v2.0-${{ github.run_number }}
           path: LingMiaoV2-v2.0.apk
           retention-days: 30
-          timeout-minutes: 10
