@@ -1,5 +1,9 @@
 name: Build LingMiao V2.0 APK
 
+# 强制使用 Node.js 24，消除黄色警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [main, master]
@@ -11,7 +15,7 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      # 1. 拉取代码
+      # 1. 拉取代码（现在包含了 liblingmiao_engine.so 和 CMakeLists.txt）
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -22,11 +26,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 3. 安装 Android SDK + NDK (修复了之前参数报错的问题)
+      # 3. 安装 Android SDK + NDK
       - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
-          # 注意：新版的 setup-android action 参数名变了，这里必须用 packages 来指定
           packages: |
             platform-tools
             platforms;android-34
@@ -34,14 +37,7 @@ jobs:
             ndk;27.0.12077973
             cmdline-tools;latest
 
-      # 4. 【关键修复】清理可能存在的损坏 Gradle 缓存
-      - name: Clean Gradle Cache
-        run: |
-          rm -rf ~/.gradle/caches/
-          rm -rf $GITHUB_WORKSPACE/.gradle/
-          echo "✅ 旧缓存已清理"
-
-      # 5. 缓存 Gradle 加速构建
+      # 4. 缓存 Gradle 加速构建（不再暴力删除缓存，提高稳定性）
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -51,82 +47,10 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 6. 下载 so 库 (修复了之前的缩进错误和下载链接)
-      - name: Download prebuilt so library v1.0
-        run: |
-          mkdir native_libs
+      # 5. 【已移除】下载 SO 库的步骤
+      # 理由：liblingmiao_engine.so 已在仓库中，libopencv_java5.so 由 Maven 自动下载
 
-          # 下载函数：带重试 + 文件类型校验
-          download_file() {
-            local url="$1"
-            local output="$2"
-            local max_retries=5
-            for ((i=1; i<=max_retries; i++)); do
-              echo "📥 尝试下载 (第 $i 次): $url"
-              rm -f "$output"
-              if wget --no-check-certificate -O "$output" "$url"; then
-                local filetype=$(file -b "$output" | head -1)
-                local filesize=$(stat -c%s "$output")
-                echo "📄 文件类型: $filetype, 大小: $filesize 字节"
-                if echo "$filetype" | grep -qi "zip"; then
-                  echo "✅ 下载成功且文件有效: $output"
-                  return 0
-                else
-                  echo "⚠️ 下载的不是有效 zip 文件（可能是错误页面），删除后重试"
-                  rm -f "$output"
-                fi
-              else
-                echo "⚠️ 下载失败（网络错误）"
-              fi
-              echo "⏳ 等待 5 秒后重试..."
-              sleep 5
-            done
-            echo "🚨 多次重试后仍失败: $output"
-            return 1
-          }
-
-          # ✅ 使用正确的 user-attachments 附件直链 (请确认这两个链接在你的仓库里能直接下载)
-          download_file "https://github.com/user-attachments/files/30623868/liblingmiao_engine.zip" "liblingmiao_engine.zip" || exit 1
-          download_file "https://github.com/user-attachments/files/30623924/libopencv_java4.zip" "libopencv_java4.zip" || exit 1
-
-          # 解压
-          echo "===== 解压 liblingmiao_engine.zip ====="
-          unzip -o liblingmiao_engine.zip -d native_libs
-          echo "===== 解压 libopencv_java4.zip ====="
-          unzip -o libopencv_java4.zip -d native_libs
-
-          # 查看解压结构
-          echo "===== native_libs 完整目录结构 ====="
-          find native_libs -type f
-
-          # 复制 .so 文件
-          mkdir -p $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
-          if ls native_libs/arm64-v8a/*.so >/dev/null 2>&1; then
-            cp native_libs/arm64-v8a/*.so $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
-          else
-            echo "⚠️ arm64-v8a 子目录不存在，使用 find 查找"
-            find native_libs -name "*.so" -exec cp {} $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/ \;
-          fi
-
-          # 列出文件
-          echo "===== 最终 jniLibs 目录内容 ====="
-          ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/
-
-          # 严格校验
-          cd $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
-          if [ ! -f "liblingmiao_engine.so" ]; then
-            echo "❌ 错误：缺失 liblingmiao_engine.so"
-            ls -la
-            exit 1
-          fi
-          if [ ! -f "libopencv_java4.so" ]; then
-            echo "❌ 错误：缺失 libopencv_java4.so"
-            ls -la
-            exit 1
-          fi
-          echo "✅ 校验完成：两个so文件全部存在，可正常打包"
-
-      # 7. 校验TFLite模型文件
+      # 6. 校验TFLite模型文件（保留，确保模型文件不为空）
       - name: Ensure TFLite models are valid
         run: |
           cd $GITHUB_WORKSPACE/app/src/main/assets/models
@@ -142,17 +66,18 @@ jobs:
                   print(f'✅ {f} 正常')
           "
 
-      # 8. 给gradlew权限
+      # 7. 给gradlew权限
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 9. 编译未签名Release包
+      # 8. 编译未签名Release包
+      # 关键：Prefab 会自动把 Maven 下载的 OpenCV 暴露给 CMake
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 10. 校验APK体积20-24MB
+      # 9. 校验APK体积20-24MB
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -164,13 +89,13 @@ jobs:
           fi
           echo "APK_PATH=$APK" >> $GITHUB_ENV
 
-      # 11. 重命名安装包
+      # 10. 重命名安装包
       - name: Rename APK
         run: |
           cp ${{ env.APK_PATH }} $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
           ls -lh $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
 
-      # 12. 上传成品包
+      # 11. 上传成品包
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
