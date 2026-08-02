@@ -14,7 +14,6 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // ✅ Prefab 开启，让 CMake 能找到 Maven 下载的 OpenCV
         buildFeatures {
             compose = true
             buildConfig = true
@@ -34,7 +33,6 @@ android {
         }
     }
 
-    // 签名配置（本地调试可留空，正式发布再填）
     signingConfigs {
         create("release") {
             // storeFile = file("release-key.jks")
@@ -67,12 +65,11 @@ android {
         jvmTarget = "17"
     }
 
-    // ✅ Compose 编译器版本（必须和 Kotlin 1.9.24 匹配）
+    // ✅ Kotlin 1.9.24 官方对应 Compose Compiler 1.5.14
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 
-    // ✅ CMake 构建脚本路径
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -94,7 +91,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // Compose BOM
+    // ✅ Compose BOM（统一管理 Compose 库版本）
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -102,7 +99,14 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // ✅ OpenCV（通过 Maven + Prefab 自动注入 CMake）
+    // ✅ OpenCV 4.9.0（Maven Central 官方包 + Prefab）
     implementation("org.opencv:opencv:4.9.0")
+}
 
+// ✅✅✅ 关键修复：强制锁定 Compose Compiler 版本
+// 防止某个传递依赖把 compiler 降级到 1.3.2，导致与 Kotlin 1.9.24 冲突
+configurations.all {
+    resolutionStrategy {
+        force("androidx.compose.compiler:compiler:1.5.14")
+    }
 }
