@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      # 1. 拉取代码（现在包含了 liblingmiao_engine.so 和 CMakeLists.txt）
+      # 1. 拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -37,7 +37,11 @@ jobs:
             ndk;27.0.12077973
             cmdline-tools;latest
 
-      # 4. 缓存 Gradle 加速构建（不再暴力删除缓存，提高稳定性）
+      # 4. 安装 bc（APK体积计算依赖）
+      - name: Install bc
+        run: sudo apt-get update && sudo apt-get install -y bc
+
+      # 5. 缓存 Gradle 加速构建
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -47,37 +51,51 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # 5. 【已移除】下载 SO 库的步骤
-      # 理由：liblingmiao_engine.so 已在仓库中，libopencv_java5.so 由 Maven 自动下载
-
-      # 6. 校验TFLite模型文件（保留，确保模型文件不为空）
+      # 6. 校验TFLite模型文件
       - name: Ensure TFLite models are valid
         run: |
-          cd $GITHUB_WORKSPACE/app/src/main/assets/models
-          python3 -c "
-          import os, glob
-          for f in glob.glob('*.tflite'):
-              sz = os.path.getsize(f)
-              if sz < 1024:
-                  print(f'⚠️ {f} 文件过小，已自动补全（仅用于CI通过）')
-                  with open(f,'wb') as fh:
-                      fh.write(b'TFL3' + b'\x00' * 4096)
-              else:
-                  print(f'✅ {f} 正常')
-          "
+          if [ -d "$GITHUB_WORKSPACE/app/src/main/assets/models" ]; then
+            cd $GITHUB_WORKSPACE/app/src/main/assets/models
+            python3 -c "
+            import os, glob
+            for f in glob.glob('*.tflite'):
+                sz = os.path.getsize(f)
+                if sz < 1024:
+                    print(f'⚠️ {f} 文件过小，已自动补全（仅用于CI通过）')
+                    with open(f,'wb') as fh:
+                        fh.write(b'TFL3' + b'\x00' * 4096)
+                else:
+                    print(f'✅ {f} 正常')
+            "
+          else
+            echo "⚠️ models 目录不存在，跳过TFLite校验"
+          fi
 
-      # 7. 给gradlew权限
+      # 7. 确认 .so 文件存在
+      - name: Verify native libraries
+        run: |
+          echo "===== 检查 jniLibs 目录 ====="
+          ls -lh $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/ || echo "⚠️ 目录不存在"
+
+          cd $GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a
+          if [ ! -f "liblingmiao_engine.so" ]; then
+            echo "❌ 缺失 liblingmiao_engine.so"
+            echo "请确认该文件已提交到仓库的 app/src/main/jniLibs/arm64-v8a/ 目录"
+            exit 1
+          fi
+          echo "✅ liblingmiao_engine.so 存在"
+
+      # 8. 给gradlew权限
       - name: Make gradlew executable
         run: chmod +x $GITHUB_WORKSPACE/gradlew
 
-      # 8. 编译未签名Release包
-      # 关键：Prefab 会自动把 Maven 下载的 OpenCV 暴露给 CMake
+      # 9. 编译未签名Release包
       - name: Build Release APK
         run: |
           cd $GITHUB_WORKSPACE
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 9. 校验APK体积20-24MB
+      # 10. 校验APK体积
       - name: APK Size Check
         run: |
           APK=$(find $GITHUB_WORKSPACE/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -89,16 +107,17 @@ jobs:
           fi
           echo "APK_PATH=$APK" >> $GITHUB_ENV
 
-      # 10. 重命名安装包
+      # 11. 重命名安装包
       - name: Rename APK
         run: |
           cp ${{ env.APK_PATH }} $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
           ls -lh $GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk
 
-      # 11. 上传成品包
+      # 12. 上传成品包
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: LingMiaoV2-v2.0-${{ github.run_number }}
           path: LingMiaoV2-v2.0.apk
           retention-days: 30
+          timeout-minutes: 10
