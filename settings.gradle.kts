@@ -19,9 +19,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
-    
+        // 👇 新增清华公开OpenCV镜像，完全免费不需要登录
+        maven { url = uri("https://mirrors.tuna.tsinghua.edu.cn/opencv/maven2/") }
     }
 }
+
 
 
 rootProject.name = "LingMiaoV2"
