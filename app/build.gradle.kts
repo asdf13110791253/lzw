@@ -7,7 +7,7 @@ android {
     namespace = "com.lingmiao.v2"
     compileSdk = 34
 
-    // ✅ 明确指定 NDK 版本（和 CI 安装的 25.2.9519653 对齐）
+    // ✅ NDK 版本和 CI 对齐
     ndkVersion = "25.2.9519653"
 
     defaultConfig {
@@ -106,10 +106,14 @@ dependencies {
 
     // ✅ OpenCV 4.9.0
     implementation("org.opencv:opencv:4.9.0")
+
+    // ✅ 显式声明 Compose 编译器（双保险）
+    implementation("androidx.compose.compiler:compiler:1.5.14")
 }
 
-// ✅ 强制锁定 Compose Compiler 版本
-configurations.all {
+// ✅✅✅ 关键修复：精准锁定 Kotlin 编译路径下的 Compose Compiler
+// 普通 configurations.all 管不到 Kotlin 编译专用依赖池
+configurations.matching { it.name.contains("kotlinCompile", ignoreCase = true) }.all {
     resolutionStrategy {
         force("androidx.compose.compiler:compiler:1.5.14")
     }
