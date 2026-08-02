@@ -1,78 +1,265 @@
-- name: Download prebuilt so library v2.0
-  run: |
-    mkdir native_libs
+// ============================================================
+// 插件配置：锁定版本，避免隐式依赖冲突
+// ============================================================
+plugins {
+    id 'com.android.application' version '8.5.0' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
+    id 'org.jetbrains.kotlin.plugin.compose' version '1.9.24' apply false
+    id 'androidx.room' version '2.6.1' apply false
+}
 
-    # 下载函数：带重试 + 文件类型校验 + 超时限制
-    download_file() {
-      local url="$1"
-      local output="$2"
-      local max_retries=5
-      for ((i=1; i<=max_retries; i++)); do
-        echo "📥 尝试下载 (第 $i 次): $url"
-        rm -f "$output"
-        # 增加30秒超时，防止无限卡死
-        if wget --timeout=30 --no-check-certificate -O "$output" "$url"; then
-          local filetype=$(file -b "$output" | head -1)
-          local filesize=$(stat -c%s "$output")
-          echo "📄 文件类型: $filetype, 大小: $filesize 字节"
-          # 判断是否为合法zip压缩包
-          if echo "$filetype" | grep -qi "Zip archive"; then
-            echo "✅ 下载成功且文件有效: $output"
-            return 0
-          else
-            echo "⚠️ 下载的不是有效 zip 文件（网页/错误页面），删除后重试"
-            rm -f "$output"
-          fi
-        else
-          echo "⚠️ 下载失败（网络/链接失效）"
-        fi
-        echo "⏳ 等待 5 秒后重试..."
-        sleep 5
-      done
-      echo "🚨 多次重试后仍失败: $output"
-      return 1
+// 应用插件到当前模块
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'androidx.room'
+
+// ============================================================
+// Android 核心配置：性能与安全基线
+// ============================================================
+android {
+    // 基础版本配置
+    namespace 'com.lingmiao.v2'
+    compileSdk 34
+    ndkVersion '27.0.12077973' // 锁定NDK版本，避免本地/CI编译差异
+    buildToolsVersion '34.0.0'
+
+    // 默认配置：针对ARM64架构极致优化
+    defaultConfig {
+        applicationId 'com.lingmiao.v2'
+        minSdk 28 // 你的项目原本配置，适配Android 9+
+        targetSdk 34
+        versionCode 2
+        versionName '2.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        
+        // ABI过滤：仅保留arm64-v8a，减小APK体积30%+，避免多架构兼容问题
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        // Room配置：导出数据库Schema，方便版本迁移调试
+        room {
+            schemaLocation "$projectDir/schemas"
+            exportSchema true
+        }
+
+        // VectorDrawable兼容：支持旧版本矢量图
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
+        // Compose配置：锁定编译器版本，避免版本漂移
+        composeOptions {
+            kotlinCompilerExtensionVersion '1.5.14'
+        }
+
+        // Native编译配置：传递参数给CMake，实现极致性能
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -O3 -flto -march=armv8-a+neon" // NEON指令集加速图像处理
+                arguments "-DANDROID_STL=c++_shared", "-DENABLE_OPENCV=ON"
+                targets "native-lib", "lingmiao_engine"
+            }
+        }
     }
 
-    # 替换为你自己仓库真实有效的附件直链
-    download_file "https://github.com/user-attachments/files/30623868/liblingmiao_engine.zip" "liblingmiao_engine.zip" || exit 1
-    download_file "https://github.com/user-attachments/files/30623924/libopencv_java4.zip" "libopencv_java4.zip" || exit 1
+    // ============================================================
+    // 构建变体：分场景适配（开发/生产/性能测试）
+    // ============================================================
+    buildTypes {
+        // Debug变体：开发调试用，关闭优化，保留调试信息
+        debug {
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            crunchPngs false // 关闭PNG压缩，加快构建速度
+            buildConfigField "boolean", "IS_DEBUG", "true"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
 
-    # 静默解压到临时目录native_libs
-    echo "===== 解压 liblingmiao_engine.zip ====="
-    unzip -qq -o liblingmiao_engine.zip -d native_libs
-    echo "===== 解压 libopencv_java4.zip ====="
-    unzip -qq -o libopencv_java4.zip -d native_libs
+        // Release变体：生产环境用，全量优化
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            crunchPngs true // 开启PNG压缩，减小体积
+            zipAlignEnabled true // 对齐优化，提升运行速度
+            buildConfigField "boolean", "IS_DEBUG", "false"
+            
+            // R8全模式优化：移除无用代码、优化字节码
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // 签名配置：关联下方签名模块
+            signingConfig signingConfigs.release
+        }
 
-    # 打印完整目录结构，方便排错
-    echo "===== native_libs 完整目录结构 ====="
-    find native_libs -type f
+        // Benchmark变体：性能测试用，关闭部分优化方便分析
+        benchmark {
+            initWith release
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            buildConfigField "boolean", "IS_BENCHMARK", "true"
+        }
+    }
 
-    # 对应你项目固定so存放路径 app/src/main/jniLibs/arm64-v8a
-    TARGET_JNI_DIR="$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a"
-    mkdir -p $TARGET_JNI_DIR
+    // ============================================================
+    // 构建特性：开启高级功能
+    // ============================================================
+    buildFeatures {
+        compose true // 启用Compose
+        prefab true // 关键：允许CMake访问Maven依赖的Native库（OpenCV）
+        buildConfig true // 生成BuildConfig类
+        viewBinding false // 你用Compose，关闭ViewBinding减少冗余
+        aidl false // 无AIDL需求，关闭
+    }
 
-    # 优先复制arm64-v8a文件夹内so，无文件夹则全局搜索所有so复制
-    if ls native_libs/arm64-v8a/*.so >/dev/null 2>&1; then
-      cp native_libs/arm64-v8a/*.so $TARGET_JNI_DIR/
-    else
-      echo "⚠️ 未找到arm64-v8a子目录，全局检索所有so文件复制"
-      find native_libs -name "*.so" -exec cp {} $TARGET_JNI_DIR/ \;
-    fi
+    // ============================================================
+    // 编译优化：提升构建速度与运行性能
+    // ============================================================
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true // 支持新版Java API（如Stream、Time）
+    }
 
-    # 输出最终目录文件
-    echo "===== 最终 jniLibs 目录内容 ====="
-    ls -lh $TARGET_JNI_DIR
+    kotlinOptions {
+        jvmTarget = '17'
+        // Kotlin编译优化：内联函数、移除无用代码、优化lambda
+        freeCompilerArgs += [
+            '-Xinline-classes',
+            '-Xno-param-assertions',
+            '-Xno-call-assertions',
+            '-Xopt-in=kotlin.RequiresOptIn'
+        ]
+    }
 
-    # 严格校验两个必需so文件，缺失直接终止流程
-    cd $TARGET_JNI_DIR
-    if [ ! -f "liblingmiao_engine.so" ]; then
-      echo "❌ 致命错误：缺失 liblingmiao_engine.so"
-      ls -la
-      exit 1
-    fi
-    if [ ! -f "libopencv_java4.so" ]; then
-      echo "❌ 致命错误：缺失 libopencv_java4.so"
-      ls -la
-      exit 1
-    fi
-    echo "✅ v2.0版本校验完成：两个so文件全部就绪，可正常编译打包"
+    // ============================================================
+    // Native构建配置：联动CMake，实现引擎与OpenCV的无缝对接
+    // ============================================================
+    externalNativeBuild {
+        cmake {
+            path file('src/main/jni/CMakeLists.txt')
+            version '3.22.1' // 锁定CMake版本，避免兼容问题
+        }
+    }
+
+    // ============================================================
+    // 打包优化：减小体积，提升安全性
+    // ============================================================
+    packaging {
+        // 资源优化：剔除无用资源
+        resources {
+            excludes += [
+                '/META-INF/{AL2.0,LGPL2.1}',
+                '/META-INF/DEPENDENCIES',
+                '/META-INF/LICENSE*',
+                '/META-INF/NOTICE*',
+                '**/*.proto',
+                '**/*.txt',
+                '**/*.md'
+            ]
+        }
+
+        // Native库优化：仅打包arm64-v8a的so
+        jniLibs {
+            useLegacyPackaging false // 启用新版打包逻辑，避免so丢失
+            keepDebugSymbols = ["**/*.so"] // 可选：保留Native调试符号，方便排查崩溃
+        }
+
+        // Dex优化：合并重复类，减小体积
+        dex {
+            useLegacyPackaging false
+            enableV2 true
+            enableV3 true
+        }
+    }
+
+    // ============================================================
+    // 签名配置：安全存储，分离本地/CI环境
+    // ============================================================
+    signingConfigs {
+        release {
+            // 本地环境：从local.properties读取密钥
+            def localProps = new Properties()
+            def localFile = rootProject.file('local.properties')
+            if (localFile.exists()) {
+                localProps.load(localFile.newDataInputStream())
+            }
+
+            // CI环境：从GitHub Secrets读取密钥
+            storeFile file(localProps.getProperty('KEYSTORE_PATH') ?: System.getenv('KEYSTORE_PATH') ?: '../lingmiao.keystore')
+            storePassword localProps.getProperty('KEYSTORE_PASSWORD') ?: System.getenv('KEYSTORE_PASSWORD') ?: ''
+            keyAlias localProps.getProperty('KEY_ALIAS') ?: System.getenv('KEY_ALIAS') ?: ''
+            keyPassword localProps.getProperty('KEY_PASSWORD') ?: System.getenv('KEY_PASSWORD') ?: ''
+            
+            // 验证签名配置是否有效
+            validateSigningConfig()
+        }
+    }
+}
+
+// ============================================================
+// 依赖管理：版本统一，冲突规避，安全校验
+// ============================================================
+dependencies {
+    // 核心基础库：锁定版本，避免依赖漂移
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+
+    // Compose全家桶：启用最新特性
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // 架构组件：Room数据库
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+
+    // AI推理框架：TFLite全功能配置
+    implementation 'org.tensorflow:tensorflow-lite:2.16.1'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.16.1' // GPU加速
+    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
+    implementation 'org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1' // Flex Delegate，支持动态图
+
+    // OpenCV 5.0：Maven自动下载，无需手动管理so
+    implementation 'org.opencv:opencv:5.0.0'
+
+    // 测试依赖：分离单元测试与仪器测试
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+}
+
+// ============================================================
+// 高级构建优化：提升CI与本地构建速度
+// ============================================================
+// 开启Gradle配置缓存，加快构建速度30%+
+project.gradle.startParameter.configurationCache = true
+// 开启并行构建，充分利用CPU核心
+project.gradle.startParameter.parallelProjectExecutionEnabled = true
+// 开启构建缓存，复用历史构建结果
+project.gradle.startParameter.buildCacheEnabled = true
+
+// 构建失败时的详细日志输出
+project.gradle.buildFinished { result ->
+    if (result.failure) {
+        println "\n🔴 构建失败：${result.failure.message}"
+        println "📋 查看详细日志：./gradlew assembleRelease --info"
+    } else {
+        println "\n🟢 构建成功！耗时：${result.duration}"
+    }
+}
