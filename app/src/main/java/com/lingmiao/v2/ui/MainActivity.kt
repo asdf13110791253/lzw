@@ -1,4 +1,4 @@
-package com.lingmiao.v2.ui
+package com.lingmiao.v2  // ✅ 修正包名，和JNI函数、Gradle namespace一致
 
 import android.Manifest
 import android.app.Activity
@@ -33,8 +33,20 @@ import com.lingmiao.v2.service.FloatingService
 import com.lingmiao.v2.service.KeepAliveService
 import com.lingmiao.v2.ui.theme.LingMiaoTheme
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    // ✅ 关键：加载C++ Native库（必须和CMake里的`add_library(native-lib ...)`名字一致）
+    companion object {
+        init {
+            System.loadLibrary("native-lib")
+        }
+
+        // ✅ 声明Native方法（和native-lib.cpp一一对应）
+        external fun stringFromJNI(): String
+        external fun bitmapToGray(bitmap: android.graphics.Bitmap): Boolean
+    }
 
     private val overlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -52,8 +64,13 @@ class MainActivity : ComponentActivity() {
     ) { granted ->
         if (granted) {
             LogManager.i("Perm", "✅ 通知权限已授予")
+        } else {
+            LogManager.w("Perm", "❌ 通知权限被拒绝")
         }
     }
+
+    // ✅ 测试用Bitmap状态（验证OpenCV是否正常工作）
+    private var testBitmap by mutableStateOf<android.graphics.Bitmap?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,18 +92,27 @@ class MainActivity : ComponentActivity() {
                         onStartOverlay = { checkAndRequestPermissions() },
                         onOpenCalibrate = { startActivity(Intent(this, CalibrateActivity::class.java)) },
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                        onOpenGuide = { startActivity(Intent(this, GuideActivity::class.java)) }
+                        onOpenGuide = { startActivity(Intent(this, GuideActivity::class.java)) },
+                        onTestOpenCV = { testOpenCV() },  // ✅ 新增OpenCV测试入口
+                        overlayEnabled = AppConfig.isOverlayEnabled
                     )
                 }
             }
         }
 
-        // 监听事件
+        // 监听事件（补全协程逻辑）
         subscribeEvents()
     }
 
     private fun subscribeEvents() {
-        // 在协程中收集事件
+        lifecycleScope.launch {
+            EventBus.eventFlow.collectLatest { event ->
+                when (event) {
+                    is EventBus.ServiceEvent -> LogManager.i("Event", event.msg)
+                    is EventBus.ConfigEvent -> LogManager.d("Event", "配置更新：${event.key}=${event.value}")
+                }
+            }
+        }
     }
 
     private fun checkAndRequestPermissions() {
@@ -108,6 +134,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // 3. 前台服务权限（Android 14+ 必须，否则保活服务会崩）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE),
+                    1001
+                )
+            }
+        }
+
         proceedAfterPermissions()
     }
 
@@ -116,6 +154,25 @@ class MainActivity : ComponentActivity() {
         FloatingService.start(this)
         AppConfig.isOverlayEnabled = true
         LogManager.service("🎯 悬浮辅助已启动")
+    }
+
+    /**
+     * ✅ 测试OpenCV链路是否正常（点击后会把测试图片转灰度，验证CV功能）
+     */
+    private fun testOpenCV() {
+        try {
+            // 读取测试图片（需在res/drawable下放test_img.png）
+            val bitmap = android.graphics.BitmapFactory.decodeResource(resources, R.drawable.test_img)
+            val success = bitmapToGray(bitmap)
+            if (success) {
+                testBitmap = bitmap
+                LogManager.i("OpenCV", "✅ 灰度转换成功：${stringFromJNI()}")
+            } else {
+                LogManager.e("OpenCV", "❌ 灰度转换失败")
+            }
+        } catch (e: Exception) {
+            LogManager.e("OpenCV", "❌ OpenCV测试异常：${e.message}")
+        }
     }
 
     override fun onDestroy() {
@@ -132,10 +189,12 @@ fun MainScreen(
     onStartOverlay: () -> Unit,
     onOpenCalibrate: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenGuide: () -> Unit
+    onOpenGuide: () -> Unit,
+    onTestOpenCV: () -> Unit,  // ✅ OpenCV测试回调
+    overlayEnabled: Boolean
 ) {
     val context = LocalContext.current
-    var overlayEnabled by remember { mutableStateOf(AppConfig.isOverlayEnabled) }
+    var localOverlayEnabled by remember { mutableStateOf(overlayEnabled) }
 
     Column(
         modifier = Modifier
@@ -146,10 +205,7 @@ fun MainScreen(
         Spacer(Modifier.height(40.dp))
 
         // Logo 区域
-        Text(
-            text = "🎱",
-            fontSize = 48.sp
-        )
+        Text(text = "🎱", fontSize = 48.sp)
         Text(
             text = "灵喵 LingMiao",
             fontSize = 28.sp,
@@ -167,8 +223,8 @@ fun MainScreen(
         // 主按钮 - 启动悬浮辅助
         Button(
             onClick = {
-                overlayEnabled = !overlayEnabled
-                if (overlayEnabled) onStartOverlay() else {
+                localOverlayEnabled = !localOverlayEnabled
+                if (localOverlayEnabled) onStartOverlay() else {
                     FloatingService.stop(context)
                     AppConfig.isOverlayEnabled = false
                 }
@@ -178,11 +234,11 @@ fun MainScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (overlayEnabled) Color(0xFF7C4DFF) else Color(0xFF4CAF50)
+                containerColor = if (localOverlayEnabled) Color(0xFF7C4DFF) else Color(0xFF4CAF50)
             )
         ) {
             Text(
-                text = if (overlayEnabled) "🎯 悬浮辅助运行中" else "▶ 启动悬浮辅助",
+                text = if (localOverlayEnabled) "🎯 悬浮辅助运行中" else "▶ 启动悬浮辅助",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -190,12 +246,21 @@ fun MainScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // ✅ 新增：OpenCV功能测试按钮（验证CV链路）
+        OutlinedButton(
+            onClick = onTestOpenCV,
+            modifier = Modifier.fillMaxWidth(0.8f).height(50.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("🖼️ 测试OpenCV灰度转换", fontSize = 16.sp)
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         // 校准按钮
         OutlinedButton(
             onClick = onOpenCalibrate,
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(50.dp),
+            modifier = Modifier.fillMaxWidth(0.8f).height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("📐 四角校准", fontSize = 16.sp)
@@ -206,9 +271,7 @@ fun MainScreen(
         // 高级设置
         OutlinedButton(
             onClick = onOpenSettings,
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(50.dp),
+            modifier = Modifier.fillMaxWidth(0.8f).height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("⚙ 高级设置", fontSize = 16.sp)
@@ -226,12 +289,11 @@ fun MainScreen(
 
         Spacer(Modifier.weight(1f))
 
-        // 底部状态
+        // ✅ 补全底部状态栏（你之前没粘贴完的部分）
         Text(
-            text = if (overlayEnabled) "运行中 · 60fps · 已校准" else "待启动",
+            text = if (localOverlayEnabled) "运行中 · 60fps · 已校准 · OpenCV已加载" else "待启动 · OpenCV就绪",
             fontSize = 12.sp,
-            color = Color.Gray
+            color = if (localOverlayEnabled) Color(0xFF4CAF50) else Color.Gray
         )
-        Spacer(Modifier.height(8.dp))
     }
 }
