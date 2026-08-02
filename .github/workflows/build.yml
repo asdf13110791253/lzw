@@ -28,12 +28,12 @@ jobs:
           cache: gradle
           cache-dependency-path: "**/*.gradle*"
 
-      # ✅ 强制卸载 NDK 26，防止 CMake 自动选用
+      # ✅ 强制卸载冲突的NDK 26
       - name: Remove conflicting NDK 26
         run: |
           sudo rm -rf /usr/local/lib/android/sdk/ndk/26*
 
-      # ✅ 安装 NDK r25c + CMake
+      # ✅ 安装NDK r25c + CMake
       - name: Install NDK r25c + CMake 3.22.1
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
@@ -41,12 +41,12 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "✅ NDK 25.2.9519653 安装完成"
 
-      # ✅ 用清华镜像下载 OpenCV SDK（成功率99%）
+      # ✅ 【关键修改】换成国内Gitee镜像，手机/CI都能稳定下载
       - name: Download OpenCV Android SDK
         run: |
-          echo "📥 下载 OpenCV 4.9.0 Android SDK..."
-          wget -q --timeout=300 \
-            "https://mirrors.tuna.tsinghua.edu.cn/github-release/opencv/opencv/4.9.0/opencv-4.9.0-android-sdk.zip" \
+          echo "📥 下载 OpenCV 4.9.0 Android SDK（国内镜像）..."
+          wget -q --timeout=600 \
+            "https://gitee.com/mirrors/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip" \
             -O /tmp/opencv.zip
 
           unzip -q /tmp/opencv.zip -d /tmp/opencv-sdk
@@ -54,19 +54,19 @@ jobs:
           echo "OPENCV_SDK_PATH=$OPENCV_PATH" >> $GITHUB_ENV
           echo "✅ OpenCV SDK 路径: $OPENCV_PATH"
 
-      # ✅ 生成 Gradle Wrapper
+      # ✅ 生成Gradle Wrapper
       - name: Generate Gradle Wrapper
         run: |
           gradle wrapper --gradle-version 8.7 --distribution-type bin
           chmod +x ./gradlew
           echo "✅ Gradle 8.7 Wrapper 生成完成"
 
-      # ✅ 构建
+      # ✅ 构建APK
       - name: Build Release APK
         run: |
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # ✅ 上传
+      # ✅ 上传APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
