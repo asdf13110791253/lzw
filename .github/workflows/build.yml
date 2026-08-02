@@ -3,6 +3,8 @@ name: Build LingMiao V2.0 APK
 # ✅ 消除 Node.js 20 黄色警告（全局生效）
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # 👇 新增：明确告诉系统 NDK 装在哪
+  ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/26.1.10909125
 
 on:
   push:
@@ -26,37 +28,38 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # 3. 【核心修复】Setup Gradle (不再强制指定版本，使用Wrapper)
-      # 这会读取 gradle-wrapper.properties，并自动验证 gradle-wrapper.jar
+      # 3. Setup Gradle (自动验证 Wrapper)
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # 4. 【终极修复】安装 Android NDK (不使用第三方插件，改用官方命令)
-      # 这是最稳的方法，绝对不会出现 "repository not found"
-      - name: Install Android NDK
+      # 4. 【关键】安装 Android SDK & NDK (合并步骤，最稳定)
+      - name: Install Android SDK & NDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          # 接受所有许可协议
+          # 一次性接受所有协议并安装所需组件
           yes | sdkmanager --licenses > /dev/null
-          # 安装 NDK r26b (版本号与你原来的一致，但这是官方源)
-          sdkmanager "ndk;26.1.10909125"
-          echo "✅ NDK r26b 安装完成"
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;26.1.10909125"
+          echo "✅ Android SDK & NDK r26b 安装完成"
 
-      # 5. 安装 bc 和 python3 (APK体积计算 & TFLite校验用)
+      # 5. 安装 bc 和 python3
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq bc python3
 
-      # 6. 确认 Android SDK 就绪
-      - name: Verify Android SDK
+      # 6. 预下载 Gradle 依赖 (防止后续超时)
+      - name: Pre-download Dependencies
         run: |
-          # 确保构建所需的 Platform 和 Build-Tools 存在
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
-          echo "✅ Android SDK 基础包就绪"
+          cd $GITHUB_WORKSPACE
+          ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
+          echo "✅ 依赖预下载完成"
 
       # 7. 校验 Native 库 (.so文件)
       - name: Verify native libraries
