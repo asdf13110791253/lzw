@@ -12,12 +12,10 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    // ✅ PREFER_SETTINGS：允许项目级仓库存在，不报错
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
-        // ✅ JitPack：OpenCV 轻量包在这里
         maven { url = uri("https://jitpack.io") }
     }
 }
