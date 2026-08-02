@@ -1,30 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.lingmiao">
+    package="com.lingmiao.v2"> <!-- ✅ 关键修正1：与 namespace 保持一致 -->
 
-    <!-- 悬浮窗权限 -->
+    <!-- ===== 核心权限 ===== -->
+    <!-- 悬浮窗 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- 录屏权限 -->
+
+    <!-- 前台服务（Android 14+ 必须细分类型） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" /> <!-- ✅ 关键修正2：保活专用 -->
+
+    <!-- 通知 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- 开机自启 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- 电池优化白名单 -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- 保活 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- 网络（模型下载/更新） -->
+
+    <!-- 网络 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- 不需要摄像头/麦克风，用 MediaProjection 截屏 -->
+    <!-- 硬件特性（明确不用摄像头） -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
-        android:name=".LingMiaoApp"
+        android:name=".App" <!-- ✅ 关键修正3：与你的 Application 类名一致 -->
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -32,11 +37,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LingMiao"
         android:largeHeap="true"
+        android:requestLegacyExternalStorage="true" <!-- ✅ Android 10+ 文件兼容 -->
         tools:targetApi="34">
 
         <!-- 主界面 -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="portrait">
@@ -46,7 +52,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 激活页面（已关闭验证逻辑，必须注册防止跳转报错） -->
+        <!-- 激活页 -->
         <activity
             android:name=".ui.ActivationActivity"
             android:exported="false"
@@ -82,13 +88,18 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- 前台保活服务 -->
+        <!-- ✅ 前台保活服务（Android 14+ 必须用 specialUse） -->
         <service
             android:name=".service.KeepAliveService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false"> <!-- ✅ 任务管理器划掉不杀 -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="保活与辅助功能" />
+        </service>
 
-        <!-- 开机自启广播 -->
+        <!-- 开机自启 -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="true"
@@ -100,6 +111,11 @@
             </intent-filter>
         </receiver>
 
-    </application>
+        <!-- ✅ 必须：MediaProjection 回调 Activity（不显示UI） -->
+        <activity
+            android:name=".ui.MediaProjectionRequestActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+    </application>
 </manifest>
