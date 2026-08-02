@@ -7,6 +7,7 @@ android {
     namespace = "com.lingmiao.v2"
     compileSdk = 34
     ndkVersion = "25.2.9519653"
+    ndkPath = System.getenv("ANDROID_NDK_HOME") ?: "/usr/local/lib/android/sdk/ndk/25.2.9519653"
 
     defaultConfig {
         applicationId = "com.lingmiao.v2"
@@ -23,7 +24,10 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17", "-O3", "-flto")
-                arguments("-DANDROID_STL=c++_shared")
+                arguments(
+                    "-DANDROID_STL=c++_shared",
+                    "-DOPENCV_SDK_PATH=$System.env.OPENCV_SDK_PATH"
+                )
                 abiFilters("arm64-v8a")
             }
         }
@@ -69,6 +73,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            excludes += "**/libc++_shared.so"
         }
     }
 }
@@ -79,18 +84,15 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // ✅ Compose 手动锁版本
     implementation("androidx.compose.ui:ui:1.6.7")
     implementation("androidx.compose.ui:ui-graphics:1.6.7")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
     implementation("androidx.compose.material3:material3:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
 
-    // ✅ OpenCV 走 JitPack 轻量包（4.5.3.0 在 Maven Central 可直接拉）
-    implementation("com.quickbirdstudios:opencv:4.5.3.0")
+    implementation("org.opencv:opencv:4.9.0")
 }
 
-// ✅ 锁定 Compose 编译器
 configurations.all {
     resolutionStrategy {
         eachDependency { details ->
