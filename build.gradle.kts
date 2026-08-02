@@ -1,7 +1,7 @@
-// 根级 build.gradle.kts（最终无仓库版）
+// 根级 build.gradle.kts（最终纯净版）
 // ============================================================
-// ✅ 完全符合 FAIL_ON_PROJECT_REPOS 严格模式要求
-// ✅ 无任何仓库声明，所有仓库由 settings.gradle.kts 统一管理
+// ✅ 无任何仓库配置，完全符合 FAIL_ON_PROJECT_REPOS 严格模式
+// ✅ 所有仓库由 settings.gradle.kts 统一管理
 // ============================================================
 
 // clean 任务：Gradle 推荐写法
