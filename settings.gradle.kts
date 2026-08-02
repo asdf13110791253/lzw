@@ -16,6 +16,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // ✅ JitPack 留着备用，目前不会用到
         maven { url = uri("https://jitpack.io") }
     }
 }
