@@ -33,11 +33,17 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # 4. 安装 Android NDK (你的 Native 库必需)
-      - name: Setup Android NDK
-        uses: android-actions/setup-android-ndk@v1
-        with:
-          ndk-version: r26b # 推荐使用稳定的 r26b 版本，适配大多数项目
+      # 4. 【终极修复】安装 Android NDK (不使用第三方插件，改用官方命令)
+      # 这是最稳的方法，绝对不会出现 "repository not found"
+      - name: Install Android NDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          # 接受所有许可协议
+          yes | sdkmanager --licenses > /dev/null
+          # 安装 NDK r26b (版本号与你原来的一致，但这是官方源)
+          sdkmanager "ndk;26.1.10909125"
+          echo "✅ NDK r26b 安装完成"
 
       # 5. 安装 bc 和 python3 (APK体积计算 & TFLite校验用)
       - name: Install dependencies
@@ -48,10 +54,6 @@ jobs:
       # 6. 确认 Android SDK 就绪
       - name: Verify Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          # 静默接受所有许可协议
-          yes | sdkmanager --licenses > /dev/null
           # 确保构建所需的 Platform 和 Build-Tools 存在
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
           echo "✅ Android SDK 基础包就绪"
