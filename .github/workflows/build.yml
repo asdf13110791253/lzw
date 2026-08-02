@@ -8,6 +8,8 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   GRADLE_OPTS: "-Xmx3g -XX:+UseParallelGC -Dfile.encoding=UTF-8"
+  ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25.2.9519653
+  ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/25.2.9519653
 
 jobs:
   build:
@@ -23,21 +25,36 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          # ✅ setup-java 自带 Gradle 缓存功能
           cache: gradle
           cache-dependency-path: "**/*.gradle*"
 
-      # ✅ 安装 NDK + CMake（用系统预装的 sdkmanager）
+      # ✅ 强制卸载 NDK 26，防止 CMake 自动选用
+      - name: Remove conflicting NDK 26
+        run: |
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/26*
+
+      # ✅ 安装 NDK r25c + CMake
       - name: Install NDK r25c + CMake 3.22.1
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
-          echo "✅ NDK + CMake 安装完成"
+          echo "✅ NDK 25.2.9519653 安装完成"
 
-      # ✅ 生成 Gradle Wrapper（锁 8.7，防止升 9.x）
+      # ✅ 用清华镜像下载 OpenCV SDK（成功率99%）
+      - name: Download OpenCV Android SDK
+        run: |
+          echo "📥 下载 OpenCV 4.9.0 Android SDK..."
+          wget -q --timeout=300 \
+            "https://mirrors.tuna.tsinghua.edu.cn/github-release/opencv/opencv/4.9.0/opencv-4.9.0-android-sdk.zip" \
+            -O /tmp/opencv.zip
+
+          unzip -q /tmp/opencv.zip -d /tmp/opencv-sdk
+          OPENCV_PATH=$(find /tmp/opencv-sdk -maxdepth 1 -name "OpenCV-android-sdk" -type d | head -1)
+          echo "OPENCV_SDK_PATH=$OPENCV_PATH" >> $GITHUB_ENV
+          echo "✅ OpenCV SDK 路径: $OPENCV_PATH"
+
+      # ✅ 生成 Gradle Wrapper
       - name: Generate Gradle Wrapper
         run: |
           gradle wrapper --gradle-version 8.7 --distribution-type bin
