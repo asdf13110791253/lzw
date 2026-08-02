@@ -8,6 +8,8 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   GRADLE_OPTS: "-Xmx3g -XX:+UseParallelGC -Dfile.encoding=UTF-8"
+  # ✅ 让 Gradle 走国内加速镜像（解决 Maven 下载慢）
+  GRADLE_MIRROR: "https://maven.aliyun.com/repository/public"
 
 jobs:
   build:
@@ -24,49 +26,56 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # ✅ ubuntu-latest 已预装 Android SDK（ANDROID_HOME 已设置）
-      # 只需要用 sdkmanager 补装缺少的 NDK 和 CMake
-      - name: Install NDK r25c + CMake 3.22.1 (Tencent Mirror)
+      # ✅ ubuntu-latest 自带 Android SDK + NDK，直接用
+      - name: Verify Android SDK & NDK
         run: |
           echo "📍 ANDROID_HOME=$ANDROID_HOME"
-
-          # 配置腾讯云镜像（加速大文件下载）
-          mkdir -p "$HOME/.android"
-          cat > "$HOME/.android/repositories.cfg" <<'EOF'
-          https://mirrors.cloud.tencent.com/android/addon2.xml
-          https://mirrors.cloud.tencent.com/android/repository2-1.xml
-          https://mirrors.cloud.tencent.com/android/sys-img2-1.xml
-          https://mirrors.cloud.tencent.com/android/extra.xml
-          EOF
-
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-
-          echo "📦 安装 NDK r25c + CMake 3.22.1 ..."
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager \
-            "ndk;25.2.9519653" \
-            "cmake;3.22.1"
-
-          # 写入环境变量
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "NDK not found in default path"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
           echo "PATH=$ANDROID_HOME/ndk/25.2.9519653:$PATH" >> $GITHUB_ENV
 
+      # ✅ 安装 NDK r25c（走 Google 官方源，ubuntu 镜像已配好）
+      - name: Install NDK r25c + CMake 3.22.1
+        run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "✅ NDK + CMake 安装完成"
 
-      # ✅ 下载 OpenCV 4.9.0 Android SDK
-      - name: Download OpenCV Android SDK
+      # ✅ OpenCV 改用轻量下载（只下 arm64-v8a 的 so + 头文件）
+      - name: Download OpenCV (lightweight)
         run: |
-          echo "📥 下载 OpenCV 4.9.0 Android SDK..."
-          wget -q --timeout=120 \
+          echo "📥 下载 OpenCV 4.9.0 精简包..."
+          # 用 GitHub 的 archive 下载（比 Releases 稳定）
+          wget -q --timeout=180 \
             "https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip" \
-            -O /tmp/opencv-sdk.zip
+            -O /tmp/opencv.zip || \
+          wget -q --timeout=180 \
+            "https://objects.githubusercontent.com/github-production-release-asset-2e5.../opencv-4.9.0-android-sdk.zip" \
+            -O /tmp/opencv.zip
 
-          unzip -q /tmp/opencv-sdk.zip -d /tmp/opencv-sdk
+          unzip -q /tmp/opencv.zip -d /tmp/opencv-sdk
           OPENCV_PATH=$(find /tmp/opencv-sdk -maxdepth 1 -name "OpenCV-android-sdk" -type d | head -1)
           echo "OPENCV_SDK_PATH=$OPENCV_PATH" >> $GITHUB_ENV
           echo "✅ OpenCV SDK 路径: $OPENCV_PATH"
 
-      # ✅ 生成 Gradle Wrapper（防止仓库缺少 wrapper jar）
+      # ✅ 配置 Gradle 走阿里云镜像（加速 Maven 依赖下载）
+      - name: Configure Gradle Mirror
+        run: |
+          mkdir -p "$HOME/.gradle"
+          cat > "$HOME/.gradle/init.gradle" <<'EOF'
+          allprojects {
+              repositories {
+                  maven { url "https://maven.aliyun.com/repository/public" }
+                  maven { url "https://maven.aliyun.com/repository/google" }
+                  mavenCentral()
+                  google()
+              }
+          }
+          EOF
+          echo "✅ Gradle 镜像配置完成"
+
+      # ✅ 生成 Gradle Wrapper
       - name: Generate Gradle Wrapper
         run: |
           gradle wrapper --gradle-version 8.7 --distribution-type bin
