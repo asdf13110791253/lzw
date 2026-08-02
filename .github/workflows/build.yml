@@ -8,9 +8,6 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   GRADLE_OPTS: "-Xmx3g -XX:+UseParallelGC -Dfile.encoding=UTF-8"
-  # ✅ 让 sdkmanager 走腾讯云镜像（这才是大头）
-  ANDROID_REPOSITORY_URL: "https://mirrors.cloud.tencent.com/android/repository/"
-  ANDROID_SDK_REPO_URL: "https://mirrors.cloud.tencent.com/android/"
 
 jobs:
   build:
@@ -27,33 +24,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # ✅ 步骤1：下载 cmdline-tools（用官方源，文件小，秒下）
-      - name: Download Android cmdline-tools
+      # ✅ ubuntu-latest 已预装 Android SDK（ANDROID_HOME 已设置）
+      # 只需要用 sdkmanager 补装缺少的 NDK 和 CMake
+      - name: Install NDK r25c + CMake 3.22.1 (Tencent Mirror)
         run: |
-          ANDROID_HOME="$HOME/Android/Sdk"
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          echo "📍 ANDROID_HOME=$ANDROID_HOME"
 
-          echo "📥 下载 cmdline-tools（官方源）..."
-          wget -q --timeout=60 \
-            "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
-            -O /tmp/cmdline-tools.zip
-
-          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" \
-             "$ANDROID_HOME/cmdline-tools/latest"
-
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
-
-          echo "✅ cmdline-tools 安装完成"
-
-      # ✅ 步骤2：配置腾讯云镜像 + 安装 SDK/NDK/CMake
-      - name: Install Android SDK / NDK / CMake
-        run: |
-          ANDROID_HOME="$HOME/Android/Sdk"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-
-          # 写入腾讯云镜像配置
+          # 配置腾讯云镜像（加速大文件下载）
           mkdir -p "$HOME/.android"
           cat > "$HOME/.android/repositories.cfg" <<'EOF'
           https://mirrors.cloud.tencent.com/android/addon2.xml
@@ -62,25 +39,21 @@ jobs:
           https://mirrors.cloud.tencent.com/android/extra.xml
           EOF
 
-          # 让 sdkmanager 使用镜像
-          export REPO_OS_OVERRIDE=linux
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
-          echo "📦 安装 SDK Platform / Build-Tools / NDK / CMake（走腾讯云镜像）..."
+          echo "📦 安装 NDK r25c + CMake 3.22.1 ..."
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "platform-tools" \
-            "ndk;26.1.10909125" \
+            "ndk;25.2.9519653" \
             "cmake;3.22.1"
 
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
-          echo "PATH=$ANDROID_HOME/ndk/26.1.10909125:$PATH" >> $GITHUB_ENV
+          # 写入环境变量
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "PATH=$ANDROID_HOME/ndk/25.2.9519653:$PATH" >> $GITHUB_ENV
 
-          echo "✅ SDK / NDK / CMake 全部安装完成"
+          echo "✅ NDK + CMake 安装完成"
 
-      # ✅ 步骤3：下载 OpenCV Android SDK
+      # ✅ 下载 OpenCV 4.9.0 Android SDK
       - name: Download OpenCV Android SDK
         run: |
           echo "📥 下载 OpenCV 4.9.0 Android SDK..."
@@ -93,13 +66,19 @@ jobs:
           echo "OPENCV_SDK_PATH=$OPENCV_PATH" >> $GITHUB_ENV
           echo "✅ OpenCV SDK 路径: $OPENCV_PATH"
 
-      # ✅ 步骤4：构建 Release APK
+      # ✅ 生成 Gradle Wrapper（防止仓库缺少 wrapper jar）
+      - name: Generate Gradle Wrapper
+        run: |
+          gradle wrapper --gradle-version 8.7 --distribution-type bin
+          chmod +x ./gradlew
+          echo "✅ Gradle Wrapper 生成完成"
+
+      # ✅ 构建 Release APK
       - name: Build Release APK
         run: |
-          chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # ✅ 步骤5：上传 APK
+      # ✅ 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
