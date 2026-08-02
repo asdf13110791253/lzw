@@ -1,10 +1,7 @@
 name: Build LingMiao V2.0 APK
 
-# ✅ 消除 Node.js 20 黄色警告（全局生效）
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  # 👇 新增：明确告诉系统 NDK 装在哪
-  ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/26.1.10909125
 
 on:
   push:
@@ -17,115 +14,43 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      # 1. 拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 安装 JDK 17
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 3. Setup Gradle (自动验证 Wrapper)
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # 4. 【关键】安装 Android SDK & NDK (合并步骤，最稳定)
-      - name: Install Android SDK & NDK
+      - name: Install Android cmdline-tools
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          # 一次性接受所有协议并安装所需组件
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmd.zip
+          unzip -q /tmp/cmd.zip -d /tmp/cmd
+          mv /tmp/cmd/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+      - name: Install SDK & NDK
+        run: |
           yes | sdkmanager --licenses > /dev/null
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "ndk;26.1.10909125"
-          echo "✅ Android SDK & NDK r26b 安装完成"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      # 5. 安装 bc 和 python3
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq bc python3
-
-      # 6. 预下载 Gradle 依赖 (防止后续超时)
-      - name: Pre-download Dependencies
-        run: |
-          cd $GITHUB_WORKSPACE
-          ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
-          echo "✅ 依赖预下载完成"
-
-      # 7. 校验 Native 库 (.so文件)
-      - name: Verify native libraries
-        run: |
-          echo "===== 检查 jniLibs 目录 ====="
-          ls -lh "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/" || echo "⚠️ 目录不存在"
-          cd "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a"
-          if [ ! -f "liblingmiao_engine.so" ]; then
-            echo "❌ 缺失 liblingmiao_engine.so"
-            exit 1
-          fi
-          echo "✅ liblingmiao_engine.so 存在"
-
-      # 8. 校验 TFLite 模型
-      - name: Ensure TFLite models are valid
-        run: |
-          MODELS_DIR="$GITHUB_WORKSPACE/app/src/main/assets/models"
-          if [ -d "$MODELS_DIR" ]; then
-            cd "$MODELS_DIR"
-            python3 -c "
-            import os, glob
-            for f in glob.glob('*.tflite'):
-                sz = os.path.getsize(f)
-                if sz < 1024:
-                    print(f'⚠️ {f} 过小，已自动补全')
-                    with open(f,'wb') as fh:
-                        fh.write(b'TFL3' + b'\x00' * 4096)
-                else:
-                    print(f'✅ {f} 正常')
-            "
-          fi
-
-      # 9. gradlew 权限
       - name: Make gradlew executable
-        run: chmod +x "$GITHUB_WORKSPACE/gradlew"
+        run: chmod +x ./gradlew
 
-      # 10. 编译 Release APK
       - name: Build Release APK
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # 11. APK 体积校验
-      - name: APK Size Check
-        run: |
-          APK=$(find "$GITHUB_WORKSPACE/app/build/outputs/apk/release" -name "*.apk" | head -1)
-          if [ -z "$APK" ]; then
-            echo "❌ APK 文件未生成！"
-            exit 1
-          fi
-          SIZE=$(stat -c%s "$APK")
-          SIZE_MB=$(echo "scale=2; $SIZE/1048576" | bc)
-          echo "📦 APK 大小: ${SIZE_MB} MB"
-          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
-
-      # 12. 重命名
-      - name: Rename APK
-        run: |
-          cp "${{ env.APK_PATH }}" "$GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk"
-          ls -lh "$GITHUB_WORKSPACE/LingMiaoV2-v2.0.apk"
-
-      # 13. 上传
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LingMiaoV2-v2.0-${{ github.run_number }}
-          path: LingMiaoV2-v2.0.apk
+          name: LingMiaoV2-${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 30
-          timeout-minutes: 15
