@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 project("lingmiao")
 
-# ✅ 关键：从环境变量读取 OpenCV SDK 路径
+# ✅ 从环境变量读取 OpenCV SDK 路径
 set(OPENCV_SDK_PATH "$ENV{OPENCV_SDK_PATH}")
 
 if(NOT EXISTS "${OPENCV_SDK_PATH}")
@@ -28,10 +28,13 @@ target_include_directories(
     ${OpenCV_INCLUDE_DIRS}
 )
 
+# ✅✅✅ 关键修复：加上 jnigraphics
+# AndroidBitmap_getInfo / lockPixels / unlockPixels 都在这个库里
 target_link_libraries(
     native-lib
     ${OpenCV_LIBS}
     android
     log
     c++_shared
+    jnigraphics    # ← 就加这一行！
 )
