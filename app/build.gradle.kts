@@ -103,5 +103,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // ✅ OpenCV（通过 Maven + Prefab 自动注入 CMake）
-    implementation("org.opencv:opencv-android:4.8.1")
+    implementation("org.opencv:opencv:4.9.0")
+
 }
