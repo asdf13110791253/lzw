@@ -20,7 +20,8 @@ android {
         buildFeatures {
             compose = true
             buildConfig = true
-            prefab = true
+            // ❌ 关掉 prefab，我们用 OpenCV Maven 包 + 手动 CMake 路径
+            // prefab = true
         }
 
         externalNativeBuild {
@@ -34,9 +35,7 @@ android {
             }
         }
 
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     signingConfigs {
@@ -57,9 +56,7 @@ android {
             )
             signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            isMinifyEnabled = false
-        }
+        debug { isMinifyEnabled = false }
     }
 
     compileOptions {
@@ -67,9 +64,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -82,9 +77,11 @@ android {
         }
     }
 
+    // ✅ 过滤 OpenCV 自带的 libc++_shared.so，用 NDK 自己的，解决冲突
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            excludes += "**/libc++_shared.so"
         }
     }
 }
@@ -96,25 +93,25 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // ✅ Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    // ✅ 手动指定 Compose 版本，不用 BOM，杜绝降级
+    implementation("androidx.compose.ui:ui:1.6.7")
+    implementation("androidx.compose.ui:ui-graphics:1.6.7")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
+    implementation("androidx.compose.material3:material3:1.2.1")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
 
-    // ✅ OpenCV 4.9.0
+    // ✅ OpenCV 4.9.0 官方 Maven 包
     implementation("org.opencv:opencv:4.9.0")
-
-    // ✅ 显式声明 Compose 编译器（双保险）
-    implementation("androidx.compose.compiler:compiler:1.5.14")
 }
 
-// ✅✅✅ 关键修复：精准锁定 Kotlin 编译路径下的 Compose Compiler
-// 普通 configurations.all 管不到 Kotlin 编译专用依赖池
-configurations.matching { it.name.contains("kotlinCompile", ignoreCase = true) }.all {
+// ✅✅✅ 终极锁定：精准命中 Compose 编译器，任何传递依赖都无法降级
+configurations.all {
     resolutionStrategy {
-        force("androidx.compose.compiler:compiler:1.5.14")
+        eachDependency { details ->
+            if (details.requested.group == "androidx.compose.compiler" &&
+                details.requested.name == "compiler") {
+                details.useVersion("1.5.14")
+            }
+        }
     }
 }
