@@ -4,14 +4,14 @@
 plugins {
     id 'com.android.application' version '8.5.0' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
-    id 'org.jetbrains.kotlin.plugin.compose' version '1.9.24' apply false
+    id 'org.jetbrains.kotlin.android.compose' version '1.9.24' apply false  // ✅ 修正ID
     id 'androidx.room' version '2.6.1' apply false
 }
 
 // 应用插件到当前模块
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+apply plugin: 'org.jetbrains.kotlin.android.compose'  // ✅ 修正ID
 apply plugin: 'kotlin-kapt'
 apply plugin: 'androidx.room'
 
@@ -22,244 +22,100 @@ android {
     // 基础版本配置
     namespace 'com.lingmiao.v2'
     compileSdk 34
-    ndkVersion '27.0.12077973' // 锁定NDK版本，避免本地/CI编译差异
+    ndkVersion '27.0.12077973'
     buildToolsVersion '34.0.0'
 
     // 默认配置：针对ARM64架构极致优化
     defaultConfig {
         applicationId 'com.lingmiao.v2'
-        minSdk 28 // 你的项目原本配置，适配Android 9+
+        minSdk 28
         targetSdk 34
         versionCode 2
         versionName '2.0'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        
-        // ABI过滤：仅保留arm64-v8a，减小APK体积30%+，避免多架构兼容问题
-        ndk {
-            abiFilters 'arm64-v8a'
+
+        // ✅ Prefab 开启，让 CMake 能找到 Maven 下载的 OpenCV
+        buildFeatures {
+            compose true
+            buildConfig true
+            prefab true
         }
 
-        // Room配置：导出数据库Schema，方便版本迁移调试
-        room {
-            schemaLocation "$projectDir/schemas"
-            exportSchema true
-        }
-
-        // VectorDrawable兼容：支持旧版本矢量图
-        vectorDrawables {
-            useSupportLibrary true
-        }
-
-        // Compose配置：锁定编译器版本，避免版本漂移
-        composeOptions {
-            kotlinCompilerExtensionVersion '1.5.14'
-        }
-
-        // Native编译配置：传递参数给CMake，实现极致性能
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17 -O3 -flto -march=armv8-a+neon" // NEON指令集加速图像处理
-                arguments "-DANDROID_STL=c++_shared", "-DENABLE_OPENCV=ON"
-                targets "native-lib", "lingmiao_engine"
+                cppFlags "-std=c++17 -O3 -flto"
+                arguments "-DANDROID_STL=c++_shared"
+                abiFilters "arm64-v8a"
             }
         }
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
 
-    // ============================================================
-    // 构建变体：分场景适配（开发/生产/性能测试）
-    // ============================================================
     buildTypes {
-        // Debug变体：开发调试用，关闭优化，保留调试信息
-        debug {
-            debuggable true
-            minifyEnabled false
-            shrinkResources false
-            crunchPngs false // 关闭PNG压缩，加快构建速度
-            buildConfigField "boolean", "IS_DEBUG", "true"
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-
-        // Release变体：生产环境用，全量优化
         release {
-            debuggable false
-            minifyEnabled true
-            shrinkResources true
-            crunchPngs true // 开启PNG压缩，减小体积
-            zipAlignEnabled true // 对齐优化，提升运行速度
-            buildConfigField "boolean", "IS_DEBUG", "false"
-            
-            // R8全模式优化：移除无用代码、优化字节码
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // 签名配置：关联下方签名模块
-            signingConfig signingConfigs.release
-        }
-
-        // Benchmark变体：性能测试用，关闭部分优化方便分析
-        benchmark {
-            initWith release
-            debuggable true
             minifyEnabled false
-            shrinkResources false
-            buildConfigField "boolean", "IS_BENCHMARK", "true"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
         }
     }
 
-    // ============================================================
-    // 构建特性：开启高级功能
-    // ============================================================
-    buildFeatures {
-        compose true // 启用Compose
-        prefab true // 关键：允许CMake访问Maven依赖的Native库（OpenCV）
-        buildConfig true // 生成BuildConfig类
-        viewBinding false // 你用Compose，关闭ViewBinding减少冗余
-        aidl false // 无AIDL需求，关闭
-    }
-
-    // ============================================================
-    // 编译优化：提升构建速度与运行性能
-    // ============================================================
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-        coreLibraryDesugaringEnabled true // 支持新版Java API（如Stream、Time）
     }
 
     kotlinOptions {
-        jvmTarget = '17'
-        // Kotlin编译优化：内联函数、移除无用代码、优化lambda
-        freeCompilerArgs += [
-            '-Xinline-classes',
-            '-Xno-param-assertions',
-            '-Xno-call-assertions',
-            '-Xopt-in=kotlin.RequiresOptIn'
-        ]
+        jvmTarget = "17"
     }
 
-    // ============================================================
-    // Native构建配置：联动CMake，实现引擎与OpenCV的无缝对接
-    // ============================================================
+    // ✅ CMake配置
     externalNativeBuild {
         cmake {
-            path file('src/main/jni/CMakeLists.txt')
-            version '3.22.1' // 锁定CMake版本，避免兼容问题
+            path file("src/main/cpp/CMakeLists.txt")
+            version "3.22.1"
         }
     }
 
-    // ============================================================
-    // 打包优化：减小体积，提升安全性
-    // ============================================================
     packaging {
-        // 资源优化：剔除无用资源
-        resources {
-            excludes += [
-                '/META-INF/{AL2.0,LGPL2.1}',
-                '/META-INF/DEPENDENCIES',
-                '/META-INF/LICENSE*',
-                '/META-INF/NOTICE*',
-                '**/*.proto',
-                '**/*.txt',
-                '**/*.md'
-            ]
-        }
-
-        // Native库优化：仅打包arm64-v8a的so
         jniLibs {
-            useLegacyPackaging false // 启用新版打包逻辑，避免so丢失
-            keepDebugSymbols = ["**/*.so"] // 可选：保留Native调试符号，方便排查崩溃
-        }
-
-        // Dex优化：合并重复类，减小体积
-        dex {
             useLegacyPackaging false
-            enableV2 true
-            enableV3 true
-        }
-    }
-
-    // ============================================================
-    // 签名配置：安全存储，分离本地/CI环境
-    // ============================================================
-    signingConfigs {
-        release {
-            // 本地环境：从local.properties读取密钥
-            def localProps = new Properties()
-            def localFile = rootProject.file('local.properties')
-            if (localFile.exists()) {
-                localProps.load(localFile.newDataInputStream())
-            }
-
-            // CI环境：从GitHub Secrets读取密钥
-            storeFile file(localProps.getProperty('KEYSTORE_PATH') ?: System.getenv('KEYSTORE_PATH') ?: '../lingmiao.keystore')
-            storePassword localProps.getProperty('KEYSTORE_PASSWORD') ?: System.getenv('KEYSTORE_PASSWORD') ?: ''
-            keyAlias localProps.getProperty('KEY_ALIAS') ?: System.getenv('KEY_ALIAS') ?: ''
-            keyPassword localProps.getProperty('KEY_PASSWORD') ?: System.getenv('KEY_PASSWORD') ?: ''
-            
-            // 验证签名配置是否有效
-            validateSigningConfig()
         }
     }
 }
 
 // ============================================================
-// 依赖管理：版本统一，冲突规避，安全校验
+// 依赖配置
 // ============================================================
 dependencies {
-    // 核心基础库：锁定版本，避免依赖漂移
-    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    // AndroidX基础库
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    implementation 'androidx.activity:activity-compose:1.9.1'
 
-    // Compose全家桶：启用最新特性
+    // Compose BOM
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
-    implementation 'androidx.activity:activity-compose:1.9.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.3'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3'
     debugImplementation 'androidx.compose.ui:ui-tooling'
 
-    // 架构组件：Room数据库
+    // Room
     implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
     kapt 'androidx.room:room-compiler:2.6.1'
 
-    // AI推理框架：TFLite全功能配置
-    implementation 'org.tensorflow:tensorflow-lite:2.16.1'
-    implementation 'org.tensorflow:tensorflow-lite-gpu:2.16.1' // GPU加速
-    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
-    implementation 'org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1' // Flex Delegate，支持动态图
+    // OpenCV
+    implementation 'org.opencv:opencv-android:4.8.1'
 
-    // OpenCV 5.0：Maven自动下载，无需手动管理so
-    implementation 'org.opencv:opencv:5.0.0'
-
-    // 测试依赖：分离单元测试与仪器测试
+    // 测试依赖
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
-    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
-}
-
-// ============================================================
-// 高级构建优化：提升CI与本地构建速度
-// ============================================================
-// 开启Gradle配置缓存，加快构建速度30%+
-project.gradle.startParameter.configurationCache = true
-// 开启并行构建，充分利用CPU核心
-project.gradle.startParameter.parallelProjectExecutionEnabled = true
-// 开启构建缓存，复用历史构建结果
-project.gradle.startParameter.buildCacheEnabled = true
-
-// 构建失败时的详细日志输出
-project.gradle.buildFinished { result ->
-    if (result.failure) {
-        println "\n🔴 构建失败：${result.failure.message}"
-        println "📋 查看详细日志：./gradlew assembleRelease --info"
-    } else {
-        println "\n🟢 构建成功！耗时：${result.duration}"
-    }
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
