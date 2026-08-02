@@ -19,9 +19,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
-        // 👇 新增这一行：OpenCV的专用下载地址，之前缺的就是它！
-        maven { url = uri("https://maven.aliyun.com/repository/opencv") }
-
+    
     }
 }
 
