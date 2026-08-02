@@ -1,31 +1,16 @@
-// ============================================================
-// 插件配置：锁定版本，避免隐式依赖冲突
-// ============================================================
 plugins {
-    id 'com.android.application' version '8.5.0' apply false
-    id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
-    id 'org.jetbrains.kotlin.android.compose' version '1.9.24' apply false  // ✅ 修正ID
-    id 'androidx.room' version '2.6.1' apply false
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
+    id 'androidx.room'
 }
 
-// 应用插件到当前模块
-apply plugin: 'com.android.application'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'org.jetbrains.kotlin.android.compose'  // ✅ 修正ID
-apply plugin: 'kotlin-kapt'
-apply plugin: 'androidx.room'
-
-// ============================================================
-// Android 核心配置：性能与安全基线
-// ============================================================
 android {
-    // 基础版本配置
     namespace 'com.lingmiao.v2'
     compileSdk 34
-    ndkVersion '27.0.12077973'
+    ndkVersion '26.1.10909125'
     buildToolsVersion '34.0.0'
 
-    // 默认配置：针对ARM64架构极致优化
     defaultConfig {
         applicationId 'com.lingmiao.v2'
         minSdk 28
@@ -35,7 +20,6 @@ android {
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 
-        // ✅ Prefab 开启，让 CMake 能找到 Maven 下载的 OpenCV
         buildFeatures {
             compose true
             buildConfig true
@@ -74,7 +58,6 @@ android {
         jvmTarget = "17"
     }
 
-    // ✅ CMake配置
     externalNativeBuild {
         cmake {
             path file("src/main/cpp/CMakeLists.txt")
@@ -89,17 +72,12 @@ android {
     }
 }
 
-// ============================================================
-// 依赖配置
-// ============================================================
 dependencies {
-    // AndroidX基础库
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.activity:activity-compose:1.9.1'
 
-    // Compose BOM
     implementation platform('androidx.compose:compose-bom:2024.06.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
@@ -107,14 +85,11 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
     debugImplementation 'androidx.compose.ui:ui-tooling'
 
-    // Room
     implementation 'androidx.room:room-runtime:2.6.1'
     kapt 'androidx.room:room-compiler:2.6.1'
 
-    // OpenCV
     implementation 'org.opencv:opencv-android:4.8.1'
 
-    // 测试依赖
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
