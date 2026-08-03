@@ -5,12 +5,8 @@ import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.opencv.NativeLoader
 
-/**
- * 灵喵 LingMiao V2.0 - Application 入口
- */
 class App : Application() {
 
-    // ✅ 合并后的唯一 Companion Object
     companion object {
         const val TAG = "LingMiaoApp"
         lateinit var instance: App
@@ -21,10 +17,8 @@ class App : Application() {
         super.onCreate()
         instance = this
 
-        // 1. 初始化日志
         LogManager.init(getExternalFilesDir(null)?.absolutePath + "/logs")
 
-        // 2. 加载 Native 库
         try {
             NativeLoader.loadAll()
             LogManager.i(TAG, "✅ Native 库加载成功")
@@ -32,9 +26,7 @@ class App : Application() {
             LogManager.e(TAG, "⚠️ Native 库加载失败（非致命）: ${e.message}")
         }
 
-        // 3. 初始化事件总线
-        EventBus.getInstance()
-
+        // EventBus 为 object，无需调用 getInstance()
         LogManager.i(TAG, "🎱 灵喵 LingMiao V2.0 启动完成")
     }
 
