@@ -5,6 +5,7 @@ import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.log.LogManager
 import kotlin.math.PI
 import kotlin.math.sqrt
+import java.util.ArrayDeque
 
 object BallDetector {
 
@@ -92,8 +93,8 @@ object BallDetector {
             for (sx in 0 until w step step) {
                 val p = pixels[sy * w + sx]
                 val lum = (p shr 16 and 0xFF) * 0.299f +
-                         (p shr 8 and 0xFF) * 0.587f +
-                         (p and 0xFF) * 0.114f
+                        (p shr 8 and 0xFF) * 0.587f +
+                        (p and 0xFF) * 0.114f
 
                 if (lum > threshold && !visited[sy * w + sx]) {
                     val region = growRegion(pixels, w, h, sx, sy, threshold, visited)
@@ -146,8 +147,8 @@ object BallDetector {
                 if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue
                 val p = pixels[n]
                 val lum = (p shr 16 and 0xFF) * 0.299f +
-                         (p shr 8 and 0xFF) * 0.587f +
-                         (p and 0xFF) * 0.114f
+                        (p shr 8 and 0xFF) * 0.587f +
+                        (p and 0xFF) * 0.114f
                 if (lum > threshold) {
                     visited[n] = true
                     queue.add(n)
@@ -155,7 +156,7 @@ object BallDetector {
             }
         }
 
-        // ====== 这里修复了类型不匹配：sqrt 返回 Double，用 toInt() 转为 Int ======
+        // 修复Long转Int类型报错，完全兼容gradle8.7+
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
