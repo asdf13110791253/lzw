@@ -2,8 +2,10 @@ package com.lingmiao.v2.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,10 +32,6 @@ import com.lingmiao.v2.service.FloatingService
 import com.lingmiao.v2.service.ScreenCaptureService
 import com.lingmiao.v2.ui.theme.LingMiaoTheme
 
-/**
- * 新手引导页 - 4 步权限授权流程
- * 1. 悬浮窗权限 → 2. 录屏权限 → 3. 电池优化白名单 → 4. 启动
- */
 class GuideActivity : ComponentActivity() {
 
     private var mediaProjectionResult: ((Int, Intent?) -> Unit)? = null
@@ -90,7 +88,7 @@ class GuideActivity : ComponentActivity() {
     }
 
     private fun requestScreenCapture() {
-        val mpm = getSystemService(MediaProjectionManager::class.java)
+        val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         screenCaptureLauncher.launch(mpm.createScreenCaptureIntent())
     }
 
@@ -112,7 +110,6 @@ class GuideActivity : ComponentActivity() {
     }
 
     private fun nextStep() {
-        // 触发重组
         recreate()
     }
 
@@ -187,7 +184,6 @@ fun GuideScreen(
 
             Spacer(Modifier.height(40.dp))
 
-            // 步骤指示器
             LinearProgressIndicator(
                 progress = (currentStep + 1) / steps.size.toFloat(),
                 modifier = Modifier
@@ -198,7 +194,6 @@ fun GuideScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            // 当前步骤卡片
             val step = steps[currentStep.coerceIn(0, steps.size - 1)]
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -225,7 +220,6 @@ fun GuideScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // 操作按钮
             Button(
                 onClick = {
                     if (currentStep < steps.size - 1) {
