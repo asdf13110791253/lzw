@@ -155,12 +155,13 @@ object BallDetector {
             }
         }
 
-        // 修复：sqrt 返回 Double，转换为 Int，并保证最小半径为 5
+        // ======== 修复：确保返回 Int 类型 ========
+        // sqrt 返回 Double，使用 toInt() 转换为 Int，并保证最小半径为 5
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
-    // Native 方法声明（已修正）
+    // Native 方法声明
     private external fun detectBallsNative(
         bitmap: Bitmap,
         vThreshold: Int,
