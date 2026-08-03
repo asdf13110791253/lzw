@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -25,12 +26,7 @@ import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.table.GeometryEngine
-import kotlinx.coroutines.delay
 
-/**
- * 四角校准页 - 拖拽四角对齐球桌内缘
- * 实时透视预览
- */
 class CalibrateActivity : ComponentActivity() {
 
     companion object {
@@ -55,7 +51,6 @@ class CalibrateActivity : ComponentActivity() {
     }
 
     private fun saveCorners(corners: GeometryEngine.Corners) {
-        // 保存到配置
         val prefs = getSharedPreferences("calibration", MODE_PRIVATE)
         prefs.edit().apply {
             putFloat("tlx", corners.tlx); putFloat("tly", corners.tly)
@@ -82,7 +77,6 @@ fun CalibrateScreen(
     val screenW = context.resources.displayMetrics.widthPixels.toFloat()
     val screenH = context.resources.displayMetrics.heightPixels.toFloat()
 
-    // 四角位置（初始值：屏幕内缩 10%）
     var tlx by remember { mutableStateOf(screenW * 0.1f) }
     var tly by remember { mutableStateOf(screenH * 0.15f) }
     var trx by remember { mutableStateOf(screenW * 0.9f) }
@@ -92,13 +86,9 @@ fun CalibrateScreen(
     var brx by remember { mutableStateOf(screenW * 0.9f) }
     var bry by remember { mutableStateOf(screenH * 0.85f) }
 
-    // 透视预览
     var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-
-    // 拖拽中的角
     var activeCorner by remember { mutableStateOf(-1) }
 
-    // 校验
     val isValid = remember(tlx, tly, trx, try_, blx, bly, brx, bry) {
         val w1 = trx - tlx; val w2 = brx - blx
         val h1 = bly - tly; val h2 = bry - try_
@@ -112,11 +102,9 @@ fun CalibrateScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // 半透明背景 + 透视预览区域
             Canvas(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // 绘制透视区域（半透明白色四边形）
                 val path = androidx.compose.ui.graphics.Path().apply {
                     moveTo(tlx, tly)
                     lineTo(trx, try_)
@@ -128,7 +116,6 @@ fun CalibrateScreen(
                     path = path,
                     color = Color.White.copy(alpha = 0.08f)
                 )
-                // 边框
                 drawPath(
                     path = path,
                     color = Color(0xFF7C4DFF),
@@ -136,7 +123,6 @@ fun CalibrateScreen(
                 )
             }
 
-            // 四角拖拽手柄
             CornerHandle(
                 x = tlx, y = tly, label = "↖",
                 onDrag = { dx, dy -> tlx = (tlx + dx).coerceIn(0f, screenW/2); tly = (tly + dy).coerceIn(0f, screenH/2) }
@@ -154,7 +140,6 @@ fun CalibrateScreen(
                 onDrag = { dx, dy -> brx = (brx + dx).coerceIn(screenW/2, screenW); bry = (bry + dy).coerceIn(screenH/2, screenH) }
             )
 
-            // 顶部提示
             Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -173,11 +158,10 @@ fun CalibrateScreen(
                     text = "拖拽四角对齐球桌内缘\n辅助线会更稳定",
                     fontSize = 14.sp,
                     color = Color.LightGray,
-                    textAlign = androidx.compose.ui.text.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
 
-            // 底部按钮
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -215,7 +199,6 @@ fun CalibrateScreen(
                 }
             }
 
-            // 实时坐标显示
             Card(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
