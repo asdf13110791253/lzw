@@ -236,9 +236,4 @@ object AppConfig {
                 "show_angle" -> editor.putBoolean(K_SHOW_ANGLE, value as? Boolean ?: false)
                 "orientation" -> editor.putInt(K_ORIENT, (value as? Number)?.toInt() ?: 0)
                 "is_overlay_enabled" -> editor.putBoolean(K_OVERLAY, value as? Boolean ?: false)
-                "is_first_launch" -> editor.putBoolean(K_FIRST_LAUNCH, value as? Boolean ?: true)
-            }
-        }
-        editor.apply()
-    }
-}
+                "is_first_launch" -> editor.putBoolean(K_FIRST_LAUNCH, value
