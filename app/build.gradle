@@ -67,6 +67,8 @@ android {
         jniLibs {
             useLegacyPackaging false
         }
+        // 新增这一行，解决libc++_shared.so重复冲突警告
+        resources.excludes.add("lib/arm64-v8a/libc++_shared.so")
     }
 }
 
@@ -87,8 +89,6 @@ dependencies {
     annotationProcessor 'androidx.room:room-compiler:2.6.1'
 
     implementation 'org.opencv:opencv:4.9.0'
-
-
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
