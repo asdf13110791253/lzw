@@ -21,11 +21,11 @@ object BallDetector {
         val color: Int
     )
 
-    const val MODE_HAAR = 0
-    const val MODE_HSV = 1
-    const val MODE_EDGE = 2
-    const val MODE_TFLITE = 3
-    const val MODE_FUSION = 4
+    const val MODE_HAAR: Int = 0
+    const val MODE_HSV: Int = 1
+    const val MODE_EDGE: Int = 2
+    const val MODE_TFLITE: Int = 3
+    const val MODE_FUSION: Int = 4
 
     private var nativeAvailable = false
 
@@ -59,8 +59,8 @@ object BallDetector {
         ) ?: return emptyList()
 
         val balls = mutableListOf<DetectedBall>()
-        var idx = 0
-        val count = result[idx++].toInt()
+        var idx: Int = 0
+        val count: Int = result[idx++].toInt()
         repeat(count) {
             val x = result[idx++]
             val y = result[idx++]
@@ -89,8 +89,8 @@ object BallDetector {
         val step: Int = 3
         val visited = BooleanArray(w * h)
 
-        for (sy in 0 until h step step) {
-            for (sx in 0 until w step step) {
+        for (sy: Int in 0 until h step step) {
+            for (sx: Int in 0 until w step step) {
                 val p = pixels[sy * w + sx]
                 val lum = (p shr 16 and 0xFF) * 0.299f +
                         (p shr 8 and 0xFF) * 0.587f +
@@ -141,18 +141,21 @@ object BallDetector {
         val maxCount: Int = 2000
 
         while (queue.isNotEmpty() && count < maxCount) {
-            val idx = queue.removeFirst()
+            val idx: Int = queue.removeFirst()
             val x: Int = idx % w
             val y: Int = idx / w
             sumX += x
             sumY += y
             count += 1
 
-            // 修复点：arrayOf → intArrayOf，强制全部元素为Int，不会自动推断Long
+            // 核心修复：全部运算结果强制转Int，彻底杜绝Long推导
             val neighbors = intArrayOf(
-                idx - 1, idx + 1, idx - w, idx + w
+                (idx - 1).toInt(),
+                (idx + 1).toInt(),
+                (idx - w).toInt(),
+                (idx + w).toInt()
             )
-            for (n in neighbors) {
+            for (n: Int in neighbors) {
                 if (n < 0 || n >= w * h) continue
                 if (visited[n]) continue
                 val nx: Int = n % w
@@ -168,11 +171,9 @@ object BallDetector {
                 }
             }
         }
-        // 全部强转Int，消除Long推导
         val areaNum: Int = count
         val radiusCalc: Int = sqrt(areaNum.toDouble() / PI).toInt()
         val radius: Int = if (radiusCalc < 5) 5 else radiusCalc
-        // 数组第三个值存总点数count，用于计算中心点
         return Pair(intArrayOf(sumX, sumY, areaNum), radius)
     }
 
