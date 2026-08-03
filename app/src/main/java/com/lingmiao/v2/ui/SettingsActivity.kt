@@ -1,3 +1,6 @@
+// ========== 文件级注解必须在 package 之前 ==========
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.lingmiao.v2.ui
 
 import android.app.Activity
@@ -25,10 +28,6 @@ import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.ball.BallDetector
 import com.lingmiao.v2.ui.theme.LingMiaoTheme
-
-// ========== 修复实验性 API 警告 ==========
-// 允许使用 Material 3 的实验性 API（如 TopAppBarDefaults.topAppBarColors）
-@file:OptIn(ExperimentalMaterial3Api::class)
 
 class SettingsActivity : ComponentActivity() {
 
@@ -261,8 +260,9 @@ fun SettingsScreen(
                                 AppConfig.maxBanks = n
                             }
                         ) {
+                            // 修复：使用 ${n} 避免歧义
                             Text(
-                                "$n库",
+                                "${n}库",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 color = if (selected) Color.White else Color.Gray,
                                 fontSize = 13.sp
