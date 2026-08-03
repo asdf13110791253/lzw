@@ -114,7 +114,7 @@ object BallDetector {
                                 confidence = 0.6f,
                                 isCueBall = isCue,
                                 ballType = 0,
-                                color = if (isCue) 0xFFFFFF else 0xFF888888
+                                color = (if (isCue) 0xFFFFFF else 0xFF888888).toInt()
                             )
                         )
                     }
