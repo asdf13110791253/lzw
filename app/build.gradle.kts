@@ -82,22 +82,22 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // Compose依赖全部写死版本，杜绝降级
+    // ✅ 所有Compose依赖写死版本，不依赖任何动态解析
     implementation("androidx.compose.ui:ui:1.6.7")
     implementation("androidx.compose.ui:ui-graphics:1.6.7")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
     implementation("androidx.compose.material3:material3:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
-    // 显式声明Compose编译器，强制版本
+    // ✅ 显式声明Compose编译器，优先级高于所有传递依赖
     implementation("androidx.compose.compiler:compiler:1.5.14")
 
     implementation("org.opencv:opencv:4.9.0")
 }
 
-// 终极锁定：优先级高于一切传递依赖
+// ✅ 终极强制锁定：比所有传递依赖优先级都高，直接忽略其他版本
 configurations.all {
     resolutionStrategy {
-        // 强制指定版本，比eachDependency优先级更高
+        // 强制指定Compose编译器版本，任何地方引入的旧版本都会被直接替换
         force("androidx.compose.compiler:compiler:1.5.14")
         eachDependency { details ->
             if (details.requested.group == "androidx.compose.compiler" &&
