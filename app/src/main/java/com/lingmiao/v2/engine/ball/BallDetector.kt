@@ -148,7 +148,7 @@ object BallDetector {
             sumY += y
             count += 1
 
-            // 全部强制转为Int，消除Long类型不匹配报错
+            // 强制转Int，彻底消除Long类型报错
             val left = (idx - 1).toInt()
             val right = (idx + 1).toInt()
             val up = (idx - w).toInt()
