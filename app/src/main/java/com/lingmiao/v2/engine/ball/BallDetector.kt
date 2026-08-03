@@ -155,9 +155,10 @@ object BallDetector {
                 }
             }
         }
-
-        // 强制标注Int，彻底杜绝Long推断
-        val radius: Int = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
+        // 拆分计算，彻底消除Long类型推断报错
+        val countDouble = count.toDouble()
+        val divideRes = countDouble / PI
+        val radius: Int = sqrt(divideRes).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
