@@ -13,11 +13,8 @@ import android.view.SurfaceView
 import android.view.WindowManager
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.render.OverlayRenderer
+import com.lingmiao.v2.engine.table.GeometryEngine
 
-/**
- * 悬浮窗服务 - 60fps 硬件加速渲染
- * 使用 SurfaceView 避免 View 绘制开销
- */
 class FloatingService : Service() {
 
     companion object {
@@ -42,22 +39,20 @@ class FloatingService : Service() {
     private lateinit var windowManager: WindowManager
     private var overlayView: SurfaceView? = null
     private var surfaceHolder: SurfaceHolder? = null
+    private val geometry = GeometryEngine()
     private lateinit var renderer: OverlayRenderer
     private var isRendering = false
     private var renderThread: Thread? = null
 
-    // 帧率控制
     private var lastFrameTime = 0L
-    private val targetFrameTime = 16L // ~60fps
-    private var actualFps = 60f
+    private val targetFrameTime = 16L
     private var frameCount = 0
     private var fpsTimer = 0L
 
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        renderer = OverlayRenderer()
-        renderer.applyConfig()
+        renderer = OverlayRenderer(geometry)
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -161,13 +156,10 @@ class FloatingService : Service() {
                     frameCount++
 
                     if (now - fpsTimer >= 1000) {
-                        actualFps = frameCount * 1000f / (now - fpsTimer)
                         frameCount = 0
                         fpsTimer = now
-                        renderer.setFps(actualFps)
                     }
                 } else {
-                    // 精确休眠
                     try { Thread.sleep(targetFrameTime - elapsed) } catch (_: InterruptedException) {}
                 }
             }
@@ -189,8 +181,7 @@ class FloatingService : Service() {
             if (canvas == null) return
             canvas.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
 
-            // 渲染辅助线
-            renderer.render(canvas)
+            renderer.render(canvas, null)
         } catch (e: Exception) {
             LogManager.e(TAG, "渲染异常: ${e.message}")
         } finally {
