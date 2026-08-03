@@ -27,7 +27,6 @@ class FloatingService : Service() {
         const val ACTION_STOP = "com.lingmiao.v2.STOP_FLOATING"
 
         fun start(context: Context) {
-            // 权限防御：启动前检查悬浮窗权限，没有则跳转设置
             if (!Settings.canDrawOverlays(context)) {
                 Toast.makeText(context, "请先开启悬浮窗权限", Toast.LENGTH_SHORT).show()
                 val intent = Intent(
@@ -76,7 +75,6 @@ class FloatingService : Service() {
 
         LogManager.service("🎯 悬浮窗服务已创建")
 
-        // 二次检查权限（防止直接在系统设置中被关闭后服务仍被启动）
         if (!Settings.canDrawOverlays(this)) {
             LogManager.e(TAG, "没有悬浮窗权限，停止服务")
             stopSelf()
@@ -125,7 +123,7 @@ class FloatingService : Service() {
             Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("灵喵 LingMiao 运行中")
                 .setContentText("点击关闭悬浮辅助")
-                .setSmallIcon(android.R.drawable.ic_menu_compass) // 可替换为自己的图标
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .setContentIntent(pendingStop)
                 .build()
@@ -137,13 +135,12 @@ class FloatingService : Service() {
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .setContentIntent(pendingStop)
-                .priority = Notification.PRIORITY_LOW
+                .setPriority(Notification.PRIORITY_LOW) // 注意：正确方法名是 setPriority
                 .build()
         }
     }
 
     private fun createOverlay() {
-        // 再次确认权限
         if (!Settings.canDrawOverlays(this)) {
             LogManager.e(TAG, "createOverlay 失败: 无悬浮窗权限")
             stopSelf()
@@ -245,7 +242,6 @@ class FloatingService : Service() {
         super.onDestroy()
         stopRenderLoop()
 
-        // 移除悬浮窗
         if (overlayView != null) {
             try {
                 windowManager.removeView(overlayView)
