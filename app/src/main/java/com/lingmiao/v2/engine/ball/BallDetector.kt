@@ -148,11 +148,11 @@ object BallDetector {
             sumY += y
             count += 1
 
-            // 核心修复：提前计算全部偏移，全部强转为Int变量，再放入intArrayOf
-            val left: Int = idx - 1
-            val right: Int = idx + 1
-            val up: Int = idx - w
-            val down: Int = idx + w
+            // 全部强制转为Int，消除Long类型不匹配报错
+            val left = (idx - 1).toInt()
+            val right = (idx + 1).toInt()
+            val up = (idx - w).toInt()
+            val down = (idx + w).toInt()
             val neighbors = intArrayOf(left, right, up, down)
 
             for (n: Int in neighbors) {
