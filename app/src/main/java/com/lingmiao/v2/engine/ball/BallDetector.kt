@@ -3,6 +3,8 @@ package com.lingmiao.v2.engine.ball
 import android.graphics.Bitmap
 import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.log.LogManager
+import kotlin.math.PI
+import kotlin.math.sqrt
 
 /**
  * 灵喵球检测模块
@@ -19,9 +21,9 @@ object BallDetector {
         val y: Float,
         val radius: Float,
         val confidence: Float,
-        val isCueBall: Boolean,   // 母球
-        val ballType: Int,         // 0=未知 1=全色 2=条纹
-        val color: Int             // 球的颜色
+        val isCueBall: Boolean,
+        val ballType: Int,
+        val color: Int
     )
 
     // ── 检测模式 ──
@@ -29,7 +31,7 @@ object BallDetector {
     const val MODE_HSV = 1
     const val MODE_EDGE = 2
     const val MODE_TFLITE = 3
-    const val MODE_FUSION = 4    // 融合全部
+    const val MODE_FUSION = 4
 
     private var nativeAvailable = false
 
@@ -44,9 +46,6 @@ object BallDetector {
         }
     }
 
-    /**
-     * 主入口：检测帧中所有球
-     */
     fun detect(bitmap: Bitmap, mode: Int = AppConfig.detectMode): List<DetectedBall> {
         if (nativeAvailable) {
             return detectNative(bitmap, mode)
@@ -54,9 +53,6 @@ object BallDetector {
         return detectCpu(bitmap, mode)
     }
 
-    /**
-     * Native 检测（C++ 实现，性能最优）
-     */
     private fun detectNative(bitmap: Bitmap, mode: Int): List<DetectedBall> {
         val preset = AppConfig.getCurrentPreset()
         val result = detectBallsNative(
@@ -68,7 +64,6 @@ object BallDetector {
             mode
         ) ?: return emptyList()
 
-        // 解析结果：[count, x1,y1,r1,conf1,isCue1,color1, x2,y2,r2...]
         val balls = mutableListOf<DetectedBall>()
         var idx = 0
         val count = result[idx++].toInt()
@@ -85,9 +80,6 @@ object BallDetector {
         return balls
     }
 
-    /**
-     * CPU 兜底检测（纯 Kotlin，速度慢但可用）
-     */
     private fun detectCpu(bitmap: Bitmap, mode: Int): List<DetectedBall> {
         val preset = AppConfig.getCurrentPreset()
         val balls = mutableListOf<DetectedBall>()
@@ -96,12 +88,10 @@ object BallDetector {
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
 
-        // 简单的高亮度圆检测（Haar 替代方案）
         val minR = 10
         val maxR = 25
         val threshold = preset.vThreshold
 
-        // 采样步长（性能考虑）
         val step = 3
         val visited = BooleanArray(w * h)
 
@@ -113,7 +103,6 @@ object BallDetector {
                          (p and 0xFF) * 0.114f
 
                 if (lum > threshold && !visited[sy * w + sx]) {
-                    // 区域生长
                     val region = growRegion(pixels, w, h, sx, sy, threshold, visited)
                     if (region.second in minR..maxR) {
                         val isCue = lum > 250f
@@ -133,7 +122,6 @@ object BallDetector {
             }
         }
 
-        // 限制数量（球桌最多 22 球）
         val result = balls.take(22)
         LogManager.detect("CPU 检测到 ${result.size} 个球 (mode=$mode)")
         return result
@@ -147,7 +135,7 @@ object BallDetector {
         queue.add(sy * w + sx)
         visited[sy * w + sx] = true
         var sumX = 0; var sumY = 0; var count = 0
-        val maxCount = 2000 // 防止过大区域
+        val maxCount = 2000
 
         while (queue.isNotEmpty() && count < maxCount) {
             val idx = queue.removeFirst()
@@ -155,7 +143,6 @@ object BallDetector {
             val y = idx / w
             sumX += x; sumY += y; count++
 
-            // 4邻域
             val neighbors = arrayOf(
                 idx - 1, idx + 1, idx - w, idx + w
             )
@@ -175,7 +162,7 @@ object BallDetector {
             }
         }
 
-        // 估算半径
+        // ✅ 修复：sqrt 返回 Double，先转 Int 再赋值
         val radius = sqrt((count / PI).toDouble()).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
@@ -190,9 +177,6 @@ object BallDetector {
         mode: Int
     ): FloatArray?
 
-    /**
-     * 参数预设切换
-     */
     fun applyPreset(presetIndex: Int) {
         AppConfig.detectMode = presetIndex
         val p = AppConfig.getCurrentPreset()
