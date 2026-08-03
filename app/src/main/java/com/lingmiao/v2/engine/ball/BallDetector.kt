@@ -128,14 +128,18 @@ object BallDetector {
         val queue = ArrayDeque<Int>()
         queue.add(sy * w + sx)
         visited[sy * w + sx] = true
-        var sumX = 0; var sumY = 0; var count = 0
-        val maxCount = 2000
+        var sumX: Int = 0
+        var sumY: Int = 0
+        var count: Int = 0
+        val maxCount: Int = 2000
 
         while (queue.isNotEmpty() && count < maxCount) {
             val idx = queue.removeFirst()
             val x = idx % w
             val y = idx / w
-            sumX += x; sumY += y; count++
+            sumX += x
+            sumY += y
+            count++
 
             val neighbors = arrayOf(
                 idx - 1, idx + 1, idx - w, idx + w
@@ -143,7 +147,8 @@ object BallDetector {
             for (n in neighbors) {
                 if (n < 0 || n >= w * h) continue
                 if (visited[n]) continue
-                val nx = n % w; val ny = n / w
+                val nx = n % w
+                val ny = n / w
                 if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue
                 val p = pixels[n]
                 val lum = (p shr 16 and 0xFF) * 0.299f +
@@ -155,10 +160,12 @@ object BallDetector {
                 }
             }
         }
-        // 拆分计算，彻底消除Long类型推断报错
-        val countDouble = count.toDouble()
-        val divideRes = countDouble / PI
-        val radius: Int = sqrt(divideRes).toInt().coerceAtLeast(5)
+        // 全部强制标注Int类型，分层转换，彻底杜绝Long推断报错
+        val intCount: Int = count
+        val doubleCount: Double = intCount.toDouble()
+        val divideNum: Double = doubleCount / PI
+        val radiusVal: Int = sqrt(divideNum).toInt()
+        val radius: Int = radiusVal.coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
