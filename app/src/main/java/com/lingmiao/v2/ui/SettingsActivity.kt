@@ -260,7 +260,6 @@ fun SettingsScreen(
                                 AppConfig.maxBanks = n
                             }
                         ) {
-                            // 修复：使用 ${n} 避免歧义
                             Text(
                                 "${n}库",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
