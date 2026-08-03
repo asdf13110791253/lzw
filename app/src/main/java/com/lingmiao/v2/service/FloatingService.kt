@@ -6,11 +6,14 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.view.Gravity
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
+import android.widget.Toast
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.render.OverlayRenderer
 import com.lingmiao.v2.engine.table.GeometryEngine
@@ -21,13 +24,27 @@ class FloatingService : Service() {
         const val TAG = "FloatingService"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "lingmiao_overlay"
+        const val ACTION_STOP = "com.lingmiao.v2.STOP_FLOATING"
 
         fun start(context: Context) {
-            val intent = Intent(context, FloatingService::class.java)
+            // 权限防御：启动前检查悬浮窗权限，没有则跳转设置
+            if (!Settings.canDrawOverlays(context)) {
+                Toast.makeText(context, "请先开启悬浮窗权限", Toast.LENGTH_SHORT).show()
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}")
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                return
+            }
+
+            val serviceIntent = Intent(context, FloatingService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
+                context.startForegroundService(serviceIntent)
             } else {
-                context.startService(intent)
+                context.startService(serviceIntent)
             }
         }
 
@@ -58,9 +75,23 @@ class FloatingService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
 
         LogManager.service("🎯 悬浮窗服务已创建")
+
+        // 二次检查权限（防止直接在系统设置中被关闭后服务仍被启动）
+        if (!Settings.canDrawOverlays(this)) {
+            LogManager.e(TAG, "没有悬浮窗权限，停止服务")
+            stopSelf()
+            return
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+        }
+
         if (overlayView == null) {
             createOverlay()
         }
@@ -83,29 +114,49 @@ class FloatingService : Service() {
 
     private fun buildNotification(): Notification {
         val stopIntent = Intent(this, FloatingService::class.java).apply {
-            action = "STOP"
+            action = ACTION_STOP
         }
         val pendingStop = PendingIntent.getService(
             this, 0, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("灵喵 LingMiao 运行中")
-            .setContentText("点击关闭悬浮辅助")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
-            .setOngoing(true)
-            .setContentIntent(pendingStop)
-            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("灵喵 LingMiao 运行中")
+                .setContentText("点击关闭悬浮辅助")
+                .setSmallIcon(android.R.drawable.ic_menu_compass) // 可替换为自己的图标
+                .setOngoing(true)
+                .setContentIntent(pendingStop)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("灵喵 LingMiao 运行中")
+                .setContentText("点击关闭悬浮辅助")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .setContentIntent(pendingStop)
+                .priority = Notification.PRIORITY_LOW
+                .build()
+        }
     }
 
     private fun createOverlay() {
+        // 再次确认权限
+        if (!Settings.canDrawOverlays(this)) {
+            LogManager.e(TAG, "createOverlay 失败: 无悬浮窗权限")
+            stopSelf()
+            return
+        }
+
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else
+                @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -180,7 +231,6 @@ class FloatingService : Service() {
             canvas = holder.lockCanvas()
             if (canvas == null) return
             canvas.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
-
             renderer.render(canvas, null)
         } catch (e: Exception) {
             LogManager.e(TAG, "渲染异常: ${e.message}")
@@ -189,6 +239,23 @@ class FloatingService : Service() {
                 try { holder.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopRenderLoop()
+
+        // 移除悬浮窗
+        if (overlayView != null) {
+            try {
+                windowManager.removeView(overlayView)
+            } catch (e: IllegalArgumentException) {
+                LogManager.e(TAG, "移除悬浮窗失败: ${e.message}")
+            }
+            overlayView = null
+        }
+
+        LogManager.service("🛑 悬浮窗服务已销毁")
     }
 
     override fun onBind(intent: Intent?): android.os.IBinder? = null
