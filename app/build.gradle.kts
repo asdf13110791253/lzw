@@ -88,7 +88,6 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
 
-    // ✅ OpenCV 4.9.0（Maven Central 自动下载，自带 prefab）
     implementation("org.opencv:opencv:4.9.0")
 }
 
