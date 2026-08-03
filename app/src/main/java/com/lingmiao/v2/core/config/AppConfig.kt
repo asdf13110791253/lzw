@@ -133,107 +133,36 @@ object AppConfig {
 
     // ── 蚂蚁线 ──
     var showAntLine: Boolean
-        get() = prefs.getBoolean(K_ANT_LINE, false)
+        get() = prefs.getBoolean(K_ANT_LINE, true)
         set(v) = prefs.edit().putBoolean(K_ANT_LINE, v).apply()
 
-    // ── 吸附最近球 ──
-    var snapToNearest: Boolean
+    // ── 自动吸附 ──
+    var snapNearest: Boolean
         get() = prefs.getBoolean(K_SNAP, true)
         set(v) = prefs.edit().putBoolean(K_SNAP, v).apply()
 
-    // ── 亮度阈值 ──
+    // ── 亮度阈值 (0-255) ──
     var brightnessThreshold: Int
-        get() = prefs.getInt(K_BRIGHT, DEFAULT_BRIGHTNESS).coerceIn(50, 300)
-        set(v) = prefs.edit().putInt(K_BRIGHT, v.coerceIn(50, 300)).apply()
+        get() = prefs.getInt(K_BRIGHT, DEFAULT_BRIGHTNESS).coerceIn(0, 255)
+        set(v) = prefs.edit().putInt(K_BRIGHT, v.coerceIn(0, 255)).apply()
 
-    // ── 圆检测灵敏度 ──
+    // ── 灵敏度 (1-100) ──
     var circleSensitivity: Int
-        get() = prefs.getInt(K_SENS, DEFAULT_SENSITIVITY).coerceIn(5, 50)
-        set(v) = prefs.edit().putInt(K_SENS, v.coerceIn(5, 50)).apply()
+        get() = prefs.getInt(K_SENS, DEFAULT_SENSITIVITY).coerceIn(1, 100)
+        set(v) = prefs.edit().putInt(K_SENS, v.coerceIn(1, 100)).apply()
 
-    // ── 最小圆间距 ──
+    // ── 最小距离 (1-100) ──
     var minCircleDist: Int
-        get() = prefs.getInt(K_MIN_DIST, DEFAULT_MIN_DIST).coerceIn(5, 50)
-        set(v) = prefs.edit().putInt(K_MIN_DIST, v.coerceIn(5, 50)).apply()
+        get() = prefs.getInt(K_MIN_DIST, DEFAULT_MIN_DIST).coerceIn(1, 100)
+        set(v) = prefs.edit().putInt(K_MIN_DIST, v.coerceIn(1, 100)).apply()
 
     // ── 显示角度 ──
     var showAngle: Boolean
-        get() = prefs.getBoolean(K_SHOW_ANGLE, false)
+        get() = prefs.getBoolean(K_SHOW_ANGLE, true)
         set(v) = prefs.edit().putBoolean(K_SHOW_ANGLE, v).apply()
 
-    // ── 横竖屏 (0=竖 1=横) ──
+    // ── 屏幕方向 ──
     var orientation: Int
-        get() = prefs.getInt(K_ORIENT, 0).coerceIn(0, 1)
-        set(v) {
-            val clamped = v.coerceIn(0, 1)
-            prefs.edit().putInt(K_ORIENT, clamped).apply()
-            EventBus.emit("orientation_changed", clamped)
-        }
-
-    // ── 8 套识别方案预设 ──
-    data class DetectPreset(
-        val name: String,
-        val vThreshold: Int,
-        val sMinDist: Int,
-        val pSensitivity: Int,
-        val dp: Float,
-        val method: String
-    )
-
-    val PRESETS = arrayOf(
-        DetectPreset("标准-室内", 232, 15, 15, 0.7f, "haar"),
-        DetectPreset("增强-室内", 200, 12, 18, 0.75f, "hsv"),
-        DetectPreset("强光环境", 260, 20, 12, 0.8f, "hsv"),
-        DetectPreset("弱光环境", 180, 10, 20, 0.65f, "tf"),
-        DetectPreset("高对比度", 250, 18, 14, 0.78f, "edge"),
-        DetectPreset("低对比度", 150, 8, 22, 0.6f, "tf"),
-        DetectPreset("高速模式", 232, 15, 8, 0.85f, "haar"),
-        DetectPreset("精确模式", 232, 15, 25, 0.9f, "tf")
-    )
-
-    fun getCurrentPreset(): DetectPreset = PRESETS[detectMode]
-
-    // ── 导出/导入 ──
-    fun exportAll(): Map<String, Any?> = mapOf(
-        "aim_color" to aimColor,
-        "aim_width" to aimWidth,
-        "detect_mode" to detectMode,
-        "physics_preset" to physicsPreset,
-        "max_banks" to maxBanks,
-        "language" to language,
-        "table_texture" to tableTexture,
-        "reflection_mode" to reflectionMode,
-        "compensation_ratio" to compensationRatio,
-        "show_ant_line" to showAntLine,
-        "snap_nearest" to snapToNearest,
-        "brightness_threshold" to brightnessThreshold,
-        "circle_sensitivity" to circleSensitivity,
-        "min_circle_dist" to minCircleDist,
-        "show_angle" to showAngle,
-        "orientation" to orientation,
-        "is_overlay_enabled" to isOverlayEnabled,
-        "is_first_launch" to isFirstLaunch
-    )
-
-    fun importAll(data: Map<String, Any?>) {
-        val editor = prefs.edit()
-        data.forEach { (key, value) ->
-            when (key) {
-                "aim_color" -> editor.putInt(K_AIM_COLOR, value as? Int ?: DEFAULT_AIM_COLOR)
-                "aim_width" -> editor.putFloat(K_AIM_WIDTH, (value as? Number)?.toFloat() ?: DEFAULT_AIM_WIDTH)
-                "detect_mode" -> editor.putInt(K_DETECT_MODE, (value as? Number)?.toInt() ?: DEFAULT_DETECT_MODE)
-                "physics_preset" -> editor.putString(K_PHYSICS, value as? String ?: "standard")
-                "max_banks" -> editor.putInt(K_MAX_BANKS, (value as? Number)?.toInt() ?: DEFAULT_MAX_BANKS)
-                "language" -> editor.putString(K_LANGUAGE, value as? String ?: "zh")
-                "table_texture" -> editor.putInt(K_TABLE_TEX, (value as? Number)?.toInt() ?: 1)
-                "reflection_mode" -> editor.putString(K_REFLECTION, value as? String ?: "mirror")
-                "compensation_ratio" -> editor.putFloat(K_COMP_RATIO, (value as? Number)?.toFloat() ?: DEFAULT_COMP_RATIO)
-                "show_ant_line" -> editor.putBoolean(K_ANT_LINE, value as? Boolean ?: false)
-                "snap_nearest" -> editor.putBoolean(K_SNAP, value as? Boolean ?: true)
-                "brightness_threshold" -> editor.putInt(K_BRIGHT, (value as? Number)?.toInt() ?: DEFAULT_BRIGHTNESS)
-                "circle_sensitivity" -> editor.putInt(K_SENS, (value as? Number)?.toInt() ?: DEFAULT_SENSITIVITY)
-                "min_circle_dist" -> editor.putInt(K_MIN_DIST, (value as? Number)?.toInt() ?: DEFAULT_MIN_DIST)
-                "show_angle" -> editor.putBoolean(K_SHOW_ANGLE, value as? Boolean ?: false)
-                "orientation" -> editor.putInt(K_ORIENT, (value as? Number)?.toInt() ?: 0)
-                "is_overlay_enabled" -> editor.putBoolean(K_OVERLAY, value as? Boolean ?: false)
-                "is_first_launch" -> editor.putBoolean(K_FIRST_LAUNCH, value
+        get() = prefs.getInt(K_ORIENT, 0)
+        set(v) = prefs.edit().putInt(K_ORIENT, v).apply()
+}
