@@ -57,6 +57,8 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
+// ===================== 可组合界面 =====================
+
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -65,6 +67,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
 
+    // 配置状态
     var aimColor by remember { mutableStateOf(AppConfig.aimColor) }
     var aimWidth by remember { mutableStateOf(AppConfig.aimWidth) }
     var detectMode by remember { mutableStateOf(AppConfig.detectMode) }
@@ -76,12 +79,14 @@ fun SettingsScreen(
     var tableTexture by remember { mutableStateOf(AppConfig.tableTexture) }
     var compensationRatio by remember { mutableStateOf(AppConfig.compensationRatio) }
 
+    // 颜色选项
     val colorOptions = listOf(
         Color.Yellow, Color.Red, Color.Green, Color.Blue,
         Color.Cyan, Color.Magenta, Color.White, Color(0xFFFF8C00)
     )
     val colorNames = listOf("黄", "红", "绿", "蓝", "青", "品红", "白", "橙")
 
+    // 反射模式
     val reflectionModes = listOf("mirror" to "镜像反射", "compensation" to "角度补偿")
 
     Scaffold(
@@ -165,6 +170,7 @@ fun SettingsScreen(
             SettingsSection(title = "🔍 图像识别方案") {
                 Column {
                     AppConfig.PRESETS.forEachIndexed { index, preset ->
+                        val isSelected = detectMode == index
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -174,13 +180,55 @@ fun SettingsScreen(
                                     AppConfig.detectMode = index
                                 }
                                 .padding(vertical = 8.dp),
-                            verticalColor = Color(0xFF7C4DFF),
-                        activeTrackColor = Color(0xFF7C4DFF)
-                    )
-                )
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = preset.name,
+                                color = if (isSelected) Color(0xFF7C4DFF) else Color.Unspecified,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            if (isSelected) {
+                                Text("✓", color = Color(0xFF7C4DFF), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (index < AppConfig.PRESETS.size - 1) {
+                            Divider(color = Color.Gray.copy(alpha = 0.3f))
+                        }
+                    }
+                }
             }
 
-            SettingsSection(title = "🔄 手动翻袋库数: $maxBanks") {
+            // ── 反射模式 ──
+            SettingsSection(title = "🔄 反射模式") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    reflectionModes.forEach { (key, label) ->
+                        val isSelected = reflectionMode == key
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) Color(0xFF7C4DFF) else Color.Transparent,
+                            border = BorderStroke(1.dp, Color.Gray),
+                            modifier = Modifier.weight(1f).clickable {
+                                reflectionMode = key
+                                AppConfig.reflectionMode = key
+                            }
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                color = if (isSelected) Color.White else Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── 手动翻袋库数 ──
+            SettingsSection(title = "🎯 手动翻袋库数: $maxBanks") {
                 Slider(
                     value = maxBanks.toFloat(),
                     onValueChange = {
@@ -188,7 +236,7 @@ fun SettingsScreen(
                         AppConfig.maxBanks = maxBanks
                     },
                     valueRange = 1f..5f,
-                    steps = 3,
+                    steps = 4,
                     colors = SliderDefaults.colors(
                         thumbColor = Color(0xFF7C4DFF),
                         activeTrackColor = Color(0xFF7C4DFF)
@@ -203,7 +251,11 @@ fun SettingsScreen(
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = if (selected) Color(0xFF7C4DFF) else Color.Transparent,
-                            border = BorderStroke(1.dp, Color.Gray)
+                            border = BorderStroke(1.dp, Color.Gray),
+                            modifier = Modifier.clickable {
+                                maxBanks = n
+                                AppConfig.maxBanks = n
+                            }
                         ) {
                             Text(
                                 "$n库",
@@ -216,6 +268,7 @@ fun SettingsScreen(
                 }
             }
 
+            // ── 显示选项 ──
             SettingsSection(title = "👁 显示选项") {
                 SwitchRow(
                     label = "显示蚂蚁线",
@@ -245,204 +298,6 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection(title = "🟫 桌布纹理") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    (1..5).forEach { n ->
-                        val selected = tableTexture == n
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (selected) Color(0xFF7C4DFF) else Color(0xFF2A2A2A),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                "桌布$n",
-                                modifier = Modifier.padding(vertical = 10.dp),
-                                color = if (selected) Color.White else Color.Gray,
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Modifier.clickable {
-                                tableTexture = n
-                                AppConfig.tableTexture = n
-                            }
-                        }
-                    }
-                }
-            }
-
-            SettingsSection(title = "📱 系统设置") {
-                Button(
-                    onClick = onOpenBattery,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("🔋 电池优化白名单", color = Color.White)
-                }
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = onOpenAppSettings,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2196F3)
-                    )
-                ) {
-                    Text("⚙️ 应用设置页", color = Color.White)
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    LogManager.i("Settings", "🚪 用户退出应用")
-                    (context as? Activity)?.finishAffinity()
-                    Runtime.getRuntime().exit(0)
-                },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE53935)
-                )
-            ) {
-                Text("🚪 退出应用", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF7C4DFF)
-            )
-            Spacer(Modifier.height(12.dp))
-            content()
-        }
-    }
-    Spacer(Modifier.height(12.dp))
-}
-
-@Composable
-private fun SwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, fontSize = 14.sp)
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF7C4DFF),
-                checkedTrackColor = Color(0xFF7C4DFF).copy(alpha = 0.5f)
-            )
-        )
-    }
-}                AppConfig.compensationRatio = it
-                    },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF7C4DFF),
-                        activeTrackColor = Color(0xFF7C4DFF)
-                    )
-                )
-            }
-
-            // ── 翻袋库数 ──
-            SettingsSection(title = "🔄 手动翻袋库数: $maxBanks") {
-                Slider(
-                    value = maxBanks.toFloat(),
-                    onValueChange = {
-                        maxBanks = it.toInt()
-                        AppConfig.maxBanks = maxBanks
-                    },
-                    valueRange = 1f..5f,
-                    steps = 3,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF7C4DFF),
-                        activeTrackColor = Color(0xFF7C4DFF)
-                    )
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    (1..5).forEach { n ->
-                        val selected = maxBanks == n
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (selected) Color(0xFF7C4DFF) else Color.Transparent,
-                            border = BorderStroke(1.dp, Color.Gray)
-                        ) {
-                            Text(
-                                "$n库",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = if (selected) Color.White else Color.Gray,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── 显示选项 ──
-            SettingsSection(title = "👁 显示选项") {
-                SwitchRow(
-                    label = "显示蚂蚁线",
-                    checked = showAntLine,
-                    onCheckedChange = {
-                        showAntLine = it
-                        AppConfig.showAntLine = it
-                    }
-                )
-                Divider(color = Color.Gray.copy(alpha = 0.3f))
-                SwitchRow(
-                    label = "吸附最近球",
-                    checked = snapNearest,
-                    onCheckedChange = {
-                        snapNearest = it
-                        AppConfig.snapToNearest = it
-                    }
-                )
-                Divider(color = Color.Gray.copy(alpha = 0.3f))
-                SwitchRow(
-                    label = "显示角度",
-                    checked = showAngle,
-                    onCheckedChange = {
-                        showAngle = it
-                        AppConfig.showAngle = it
-                    }
-                )
-            }
-
             // ── 桌布纹理 ──
             SettingsSection(title = "🟫 桌布纹理") {
                 Row(
@@ -453,118 +308,96 @@ private fun SwitchRow(
                         val selected = tableTexture == n
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (selected) Color(0xFF7C4DFF) else Color(0xFF2A2A2A),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                "桌布$n",
-                                modifier = Modifier.padding(vertical = 10.dp),
-                                color = if (selected) Color.White else Color.Gray,
-                                fontSize = 13.sp,
-                                textAlign = androidx.compose.ui.text.TextAlign.Center
-                            )
-                            Modifier.clickable {
+                            color = if (selected) Color(0xFF7C4DFF) else Color.Transparent,
+                            border = BorderStroke(1.dp, Color.Gray),
+                            modifier = Modifier.weight(1f).clickable {
                                 tableTexture = n
                                 AppConfig.tableTexture = n
                             }
+                        ) {
+                            Text(
+                                "纹理$n",
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = if (selected) Color.White else Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
             }
 
-            // ── 系统设置入口 ──
-            SettingsSection(title = "📱 系统设置") {
+            // ── 角度补偿系数 ──
+            SettingsSection(title = "📐 角度补偿系数: ${"%.2f".format(compensationRatio)}") {
+                Slider(
+                    value = compensationRatio,
+                    onValueChange = {
+                        compensationRatio = it
+                        AppConfig.compensationRatio = it
+                    },
+                    valueRange = 0.5f..2.0f,
+                    steps = 15,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF7C4DFF),
+                        activeTrackColor = Color(0xFF7C4DFF)
+                    )
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { compensationRatio = 0.5f; AppConfig.compensationRatio = 0.5f }) { Text("0.5") }
+                    TextButton(onClick = { compensationRatio = 1.0f; AppConfig.compensationRatio = 1.0f }) { Text("1.0") }
+                    TextButton(onClick = { compensationRatio = 2.0f; AppConfig.compensationRatio = 2.0f }) { Text("2.0") }
+                }
+            }
+
+            // ── 系统设置快捷入口 ──
+            SettingsSection(title = "⚡ 系统设置") {
                 Button(
                     onClick = onOpenBattery,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF8C00))
                 ) {
-                    Text("🔋 电池优化白名单", color = Color.White)
+                    Text("🔋 电池优化设置")
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onOpenAppSettings,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2196F3)
-                    )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
                 ) {
-                    Text("⚙️ 应用设置页", color = Color.White)
+                    Text("📱 应用权限设置")
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ── 退出按钮 ──
-            Button(
-                onClick = {
-                    LogManager.i("Settings", "🚪 用户退出应用")
-                    (context as? Activity)?.finishAffinity()
-                    Runtime.getRuntime().exit(0)
-                },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE53935)
-                )
-            ) {
-                Text("🚪 退出应用", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
 
+// ===================== 辅助可组合组件 =====================
+
 @Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+fun SettingsSection(title: String, content: @Composable () -> Unit) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = Color.Gray
         )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF7C4DFF)
-            )
-            Spacer(Modifier.height(12.dp))
-            content()
-        }
+        Spacer(Modifier.height(4.dp))
+        content()
     }
-    Spacer(Modifier.height(12.dp))
 }
 
 @Composable
-private fun SwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 14.sp)
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF7C4DFF),
-                checkedTrackColor = Color(0xFF7C4DFF).copy(alpha = 0.5f)
-            )
-        )
+        Text(label, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
