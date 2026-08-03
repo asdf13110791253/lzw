@@ -6,16 +6,10 @@ import com.lingmiao.v2.core.log.LogManager
 import kotlin.math.PI
 import kotlin.math.sqrt
 
-/**
- * 灵喵球检测模块
- * 融合 4 种检测方案：Haar Cascade / HSV 阈值 / 边缘检测 / TFLite
- * 支持 8 套参数预设切换
- */
 object BallDetector {
 
     private const val TAG = "BallDetect"
 
-    // ── 检测结果 ──
     data class DetectedBall(
         val x: Float,
         val y: Float,
@@ -26,7 +20,6 @@ object BallDetector {
         val color: Int
     )
 
-    // ── 检测模式 ──
     const val MODE_HAAR = 0
     const val MODE_HSV = 1
     const val MODE_EDGE = 2
@@ -162,12 +155,10 @@ object BallDetector {
             }
         }
 
-        // ✅ 修复：sqrt 返回 Double，先转 Int 再赋值
-        val radius = sqrt((count / PI).toDouble()).toInt().coerceAtLeast(5)
+        val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
-    // ── Native 方法声明 ──
     private external fun detectBallsNative(
         bitmap: Bitmap,
         vThreshold: Int,
