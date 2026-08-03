@@ -45,8 +45,6 @@ class App : Application() {
 
     fun isNativeReady(): Boolean = NativeLoader.isLoaded()
 
-    internal set
-
     var isForeground = false
         internal set
 
