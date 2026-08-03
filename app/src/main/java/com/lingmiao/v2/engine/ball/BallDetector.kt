@@ -156,7 +156,7 @@ object BallDetector {
             }
         }
 
-        // 彻底修复Long/Int类型不匹配报错
+        // 强制转Int，彻底消除Long/Int类型冲突报错
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
