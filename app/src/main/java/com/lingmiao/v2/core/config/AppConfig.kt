@@ -206,16 +206,39 @@ object AppConfig {
         "compensation_ratio" to compensationRatio,
         "show_ant_line" to showAntLine,
         "snap_nearest" to snapToNearest,
-        "brightness" to brightnessThreshold,
-        "sensitivity" to circleSensitivity,
-        "min_dist" to minCircleDist,
+        "brightness_threshold" to brightnessThreshold,
+        "circle_sensitivity" to circleSensitivity,
+        "min_circle_dist" to minCircleDist,
         "show_angle" to showAngle,
-        "orientation" to orientation
+        "orientation" to orientation,
+        "is_overlay_enabled" to isOverlayEnabled,
+        "is_first_launch" to isFirstLaunch
     )
 
-    fun reset() {
-        prefs.edit().clear().apply()
-        EventBus.emit("config_reset", null)
+    fun importAll(data: Map<String, Any?>) {
+        val editor = prefs.edit()
+        data.forEach { (key, value) ->
+            when (key) {
+                "aim_color" -> editor.putInt(K_AIM_COLOR, value as? Int ?: DEFAULT_AIM_COLOR)
+                "aim_width" -> editor.putFloat(K_AIM_WIDTH, (value as? Number)?.toFloat() ?: DEFAULT_AIM_WIDTH)
+                "detect_mode" -> editor.putInt(K_DETECT_MODE, (value as? Number)?.toInt() ?: DEFAULT_DETECT_MODE)
+                "physics_preset" -> editor.putString(K_PHYSICS, value as? String ?: "standard")
+                "max_banks" -> editor.putInt(K_MAX_BANKS, (value as? Number)?.toInt() ?: DEFAULT_MAX_BANKS)
+                "language" -> editor.putString(K_LANGUAGE, value as? String ?: "zh")
+                "table_texture" -> editor.putInt(K_TABLE_TEX, (value as? Number)?.toInt() ?: 1)
+                "reflection_mode" -> editor.putString(K_REFLECTION, value as? String ?: "mirror")
+                "compensation_ratio" -> editor.putFloat(K_COMP_RATIO, (value as? Number)?.toFloat() ?: DEFAULT_COMP_RATIO)
+                "show_ant_line" -> editor.putBoolean(K_ANT_LINE, value as? Boolean ?: false)
+                "snap_nearest" -> editor.putBoolean(K_SNAP, value as? Boolean ?: true)
+                "brightness_threshold" -> editor.putInt(K_BRIGHT, (value as? Number)?.toInt() ?: DEFAULT_BRIGHTNESS)
+                "circle_sensitivity" -> editor.putInt(K_SENS, (value as? Number)?.toInt() ?: DEFAULT_SENSITIVITY)
+                "min_circle_dist" -> editor.putInt(K_MIN_DIST, (value as? Number)?.toInt() ?: DEFAULT_MIN_DIST)
+                "show_angle" -> editor.putBoolean(K_SHOW_ANGLE, value as? Boolean ?: false)
+                "orientation" -> editor.putInt(K_ORIENT, (value as? Number)?.toInt() ?: 0)
+                "is_overlay_enabled" -> editor.putBoolean(K_OVERLAY, value as? Boolean ?: false)
+                "is_first_launch" -> editor.putBoolean(K_FIRST_LAUNCH, value as? Boolean ?: true)
+            }
+        }
+        editor.apply()
     }
 }
-u
