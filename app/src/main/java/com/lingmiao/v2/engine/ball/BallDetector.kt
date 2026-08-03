@@ -155,13 +155,12 @@ object BallDetector {
             }
         }
 
-        // ✅ 修复：sqrt 返回 Double，转 Int
+        // 修复：sqrt 返回 Double，转换为 Int，并保证最小半径为 5
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
-    // ========== 修复点 ==========
-    // 原声明有语法错误（中文、多余字符），现修正为标准的 Kotlin 外部函数声明
+    // Native 方法声明（已修正）
     private external fun detectBallsNative(
         bitmap: Bitmap,
         vThreshold: Int,
@@ -170,7 +169,6 @@ object BallDetector {
         dp: Float,
         mode: Int
     ): FloatArray?
-    // ============================
 
     fun applyPreset(presetIndex: Int) {
         AppConfig.detectMode = presetIndex
