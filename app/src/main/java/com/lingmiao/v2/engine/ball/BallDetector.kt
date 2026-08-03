@@ -160,14 +160,17 @@ object BallDetector {
         return Pair(intArrayOf(sumX, sumY), radius)
     }
 
+    // ========== 修复点 ==========
+    // 原声明有语法错误（中文、多余字符），现修正为标准的 Kotlin 外部函数声明
     private external fun detectBallsNative(
         bitmap: Bitmap,
         vThreshold: Int,
         sMinDist: Int,
         pSensitivity: Int,
         dp: Float,
-        mode: Int模式：整数
-    ): FloatArray?)：FloatArray？)：FloatArray?)：FloatArray？
+        mode: Int
+    ): FloatArray?
+    // ============================
 
     fun applyPreset(presetIndex: Int) {
         AppConfig.detectMode = presetIndex
