@@ -148,7 +148,8 @@ object BallDetector {
             sumY += y
             count += 1
 
-            val neighbors = arrayOf(
+            // 修复点：arrayOf → intArrayOf，强制全部元素为Int，不会自动推断Long
+            val neighbors = intArrayOf(
                 idx - 1, idx + 1, idx - w, idx + w
             )
             for (n in neighbors) {
