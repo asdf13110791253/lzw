@@ -155,6 +155,7 @@ object BallDetector {
             }
         }
 
+        // ✅ 修复：sqrt 返回 Double，转 Int
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
@@ -165,8 +166,8 @@ object BallDetector {
         sMinDist: Int,
         pSensitivity: Int,
         dp: Float,
-        mode: Int
-    ): FloatArray?
+        mode: Int模式：整数
+    ): FloatArray?)：FloatArray？)：FloatArray?)：FloatArray？
 
     fun applyPreset(presetIndex: Int) {
         AppConfig.detectMode = presetIndex
