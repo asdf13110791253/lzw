@@ -77,16 +77,16 @@ object BallDetector {
     private fun detectCpu(bitmap: Bitmap, mode: Int): List<DetectedBall> {
         val preset = AppConfig.getCurrentPreset()
         val balls = mutableListOf<DetectedBall>()
-        val w = bitmap.width
-        val h = bitmap.height
+        val w: Int = bitmap.width
+        val h: Int = bitmap.height
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
 
-        val minR = 10
-        val maxR = 25
-        val threshold = preset.vThreshold
+        val minR: Int = 10
+        val maxR: Int = 25
+        val threshold: Int = preset.vThreshold
 
-        val step = 3
+        val step: Int = 3
         val visited = BooleanArray(w * h)
 
         for (sy in 0 until h step step) {
@@ -98,13 +98,19 @@ object BallDetector {
 
                 if (lum > threshold && !visited[sy * w + sx]) {
                     val region = growRegion(pixels, w, h, sx, sy, threshold, visited)
-                    if (region.second in minR..maxR) {
+                    val regionRadius: Int = region.second
+                    if (regionRadius in minR..maxR) {
+                        val sumXTotal: Int = region.first[0]
+                        val sumYTotal: Int = region.first[1]
+                        val areaCount: Int = region.first[2]
+                        val centerX = sumXTotal.toFloat() / areaCount.toFloat()
+                        val centerY = sumYTotal.toFloat() / areaCount.toFloat()
                         val isCue = lum > 250f
                         balls.add(
                             DetectedBall(
-                                x = region.first[0] / region.second.toFloat(),
-                                y = region.first[1] / region.second.toFloat(),
-                                radius = region.second.toFloat(),
+                                x = centerX,
+                                y = centerY,
+                                radius = regionRadius.toFloat(),
                                 confidence = 0.6f,
                                 isCueBall = isCue,
                                 ballType = 0,
@@ -126,8 +132,9 @@ object BallDetector {
         sx: Int, sy: Int, threshold: Int, visited: BooleanArray
     ): Pair<IntArray, Int> {
         val queue = ArrayDeque<Int>()
-        queue.add(sy * w + sx)
-        visited[sy * w + sx] = true
+        val startIndex: Int = sy * w + sx
+        queue.add(startIndex)
+        visited[startIndex] = true
         var sumX: Int = 0
         var sumY: Int = 0
         var count: Int = 0
@@ -135,11 +142,11 @@ object BallDetector {
 
         while (queue.isNotEmpty() && count < maxCount) {
             val idx = queue.removeFirst()
-            val x = idx % w
-            val y = idx / w
+            val x: Int = idx % w
+            val y: Int = idx / w
             sumX += x
             sumY += y
-            count++
+            count += 1
 
             val neighbors = arrayOf(
                 idx - 1, idx + 1, idx - w, idx + w
@@ -147,8 +154,8 @@ object BallDetector {
             for (n in neighbors) {
                 if (n < 0 || n >= w * h) continue
                 if (visited[n]) continue
-                val nx = n % w
-                val ny = n / w
+                val nx: Int = n % w
+                val ny: Int = n / w
                 if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue
                 val p = pixels[n]
                 val lum = (p shr 16 and 0xFF) * 0.299f +
@@ -160,13 +167,12 @@ object BallDetector {
                 }
             }
         }
-        // 全部强制标注Int类型，分层转换，彻底杜绝Long推断报错
-        val intCount: Int = count
-        val doubleCount: Double = intCount.toDouble()
-        val divideNum: Double = doubleCount / PI
-        val radiusVal: Int = sqrt(divideNum).toInt()
-        val radius: Int = radiusVal.coerceAtLeast(5)
-        return Pair(intArrayOf(sumX, sumY), radius)
+        // 全部强转Int，消除Long推导
+        val areaNum: Int = count
+        val radiusCalc: Int = sqrt(areaNum.toDouble() / PI).toInt()
+        val radius: Int = if (radiusCalc < 5) 5 else radiusCalc
+        // 数组第三个值存总点数count，用于计算中心点
+        return Pair(intArrayOf(sumX, sumY, areaNum), radius)
     }
 
     private external fun detectBallsNative(
