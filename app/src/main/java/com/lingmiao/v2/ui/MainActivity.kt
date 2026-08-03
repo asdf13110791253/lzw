@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndRequestPermissions() {
+        // 1. 悬浮窗权限（必须运行时授权）
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -122,6 +123,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // 2. 通知权限（Android 13+，可选但建议授权）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -129,17 +131,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE),
-                    1001
-                )
-            }
-        }
-
+        // 3. 启动悬浮窗服务
         proceedAfterPermissions()
     }
 
@@ -151,15 +143,6 @@ class MainActivity : ComponentActivity() {
 
     private fun testOpenCV() {
         try {
-            // 暂时注释掉，避免资源缺失错误
-            // val bitmap = android.graphics.BitmapFactory.decodeResource(resources, R.drawable.test_img)
-            // val success = bitmapToGray(bitmap)
-            // if (success) {
-            //     testBitmap = bitmap
-            //     LogManager.i("OpenCV", "✅ 灰度转换成功：${stringFromJNI()}")
-            // } else {
-            //     LogManager.e("OpenCV", "❌ 灰度转换失败")
-            // }
             LogManager.i("OpenCV", "OpenCV 测试方法（已跳过，请添加测试图片）")
         } catch (e: Exception) {
             LogManager.e("OpenCV", "❌ OpenCV测试异常：${e.message}")
