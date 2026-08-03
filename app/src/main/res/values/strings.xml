@@ -66,4 +66,28 @@
     <string name="ready">准备就绪</string>
     <string name="request_capture">请求录屏权限</string>
     <string name="request_overlay">请求悬浮窗权限</string>
+
+    <!-- 补全日志中所有缺失的字符串 -->
+    <string name="bank_comp_desc">翻袋补偿说明</string>
+    <string name="bank_mirror_desc">镜像模式说明</string>
+    <string name="bank_title">翻袋设置</string>
+    <string name="confirm_before_launch">确认后再启动</string>
+    <string name="confirm_manual">手动确认</string>
+    <string name="launch_flow">启动流程</string>
+    <string name="launch_horizontal">请横屏使用</string>
+    <string name="launch_mode">选择模式</string>
+    <string name="launch_ready">准备就绪</string>
+    <string name="launch_start_desc">点击开始，灵喵将启动悬浮窗</string>
+    <string name="launch_vertical">请竖屏使用</string>
+    <string name="main_title">灵喵辅助</string>
+    <string name="screen_record_continue">继续</string>
+    <string name="screen_record_range">选择录制范围</string>
+    <string name="sys_app_btn">应用管理</string>
+    <string name="sys_battery_btn">电池优化</string>
+    <string name="sys_setting_desc">管理权限与系统配置</string>
+    <string name="sys_setting_title">系统设置</string>
+    <string name="usage_1">将悬浮窗对准球桌</string>
+    <string name="usage_2">灵喵会自动识别球位</string>
+    <string name="usage_3">辅助线实时计算最佳路线</string>
+    <string name="usage_title">使用说明</string>
 </resources>
