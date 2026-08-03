@@ -7,16 +7,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
-import android.os.IBinder
 import android.view.Gravity
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
-import com.lingmiao.v2.core.config.AppConfig
-import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
-import com.lingmiao.v2.engine.aim.AimEngine
-import com.lingmiao.v2.engine.ball.BallDetector
 import com.lingmiao.v2.engine.render.OverlayRenderer
 
 /**
@@ -205,3 +200,5 @@ class FloatingService : Service() {
         }
     }
 
+    override fun onBind(intent: Intent?): android.os.IBinder? = null
+}
