@@ -156,7 +156,7 @@ object BallDetector {
             }
         }
 
-        // 修复Long转Int类型报错，完全兼容gradle8.7+
+        // 彻底修复Long/Int类型不匹配报错
         val radius = sqrt(count.toDouble() / PI).toInt().coerceAtLeast(5)
         return Pair(intArrayOf(sumX, sumY), radius)
     }
