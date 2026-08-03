@@ -18,10 +18,6 @@ import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.ball.BallDetector
 import com.lingmiao.v2.engine.aim.AimEngine
 
-/**
- * 录屏服务 - MediaProjection + ImageReader
- * 实时捕获屏幕 → 转 Bitmap → 球检测 → 瞄准计算
- */
 class ScreenCaptureService : Service() {
 
     companion object {
@@ -116,7 +112,6 @@ class ScreenCaptureService : Service() {
         lastFpsTime = System.currentTimeMillis()
         LogManager.service("📸 录屏开始: ${width}x${height}")
 
-        // 通知事件总线
         EventBus.emit("screen_capture_started", "$width x $height")
     }
 
@@ -124,7 +119,6 @@ class ScreenCaptureService : Service() {
         if (image == null) return
         frameCount++
 
-        // FPS 计算
         val now = System.currentTimeMillis()
         if (now - lastFpsTime >= 1000) {
             currentFps = frameCount * 1000f / (now - lastFpsTime)
@@ -133,7 +127,6 @@ class ScreenCaptureService : Service() {
         }
 
         try {
-            // 转 Bitmap（简化处理，实际应做 RGBA 转换）
             val planes = image.planes
             if (planes.isNotEmpty()) {
                 // 实际项目中这里做 NV21 → Bitmap 转换
@@ -173,13 +166,24 @@ class ScreenCaptureService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification =
-        Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("灵喵 录屏中")
-            .setContentText("实时分析台球轨迹")
-            .setSmallIcon(android.R.drawable.ic_menu_camera)
-            .setOngoing(true)
-            .build()
+    private fun buildNotification(): Notification {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("灵喵 录屏中")
+                .setContentText("实时分析台球轨迹")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setOngoing(true)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("灵喵 录屏中")
+                .setContentText("实时分析台球轨迹")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setOngoing(true)
+                .build()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
