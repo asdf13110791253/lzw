@@ -10,8 +10,11 @@ import com.lingmiao.v2.engine.opencv.NativeLoader
  */
 class App : Application() {
 
+    // ✅ 合并后的唯一 Companion Object
     companion object {
         const val TAG = "LingMiaoApp"
+        lateinit var instance: App
+            private set
     }
 
     override fun onCreate() {
@@ -52,10 +55,5 @@ class App : Application() {
         if (level >= TRIM_MEMORY_MODERATE) {
             LogManager.w(TAG, "内存紧张 level=$level，释放缓存")
         }
-    }
-
-    companion object {
-        lateinit var instance: App
-            private set
     }
 }
