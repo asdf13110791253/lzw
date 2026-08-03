@@ -55,17 +55,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 
-    // ✅ 全新逻辑：AGP 8.x原生ComposeCompiler配置块（之前从未使用过）
-    // 优先级高于所有插件/传递依赖，直接接管编译器版本
+    // AGP原生Compose编译器配置，优先级最高，插件没法覆盖
     composeCompiler {
-        // 和Kotlin 1.9.24匹配的官方编译器版本
-        version = "1.5.14"
-        // 开启局部兼容开关，和全局开关双重保障
-        suppressKotlinVersionCompatibilityCheck = true
+        version = "1.5.14" // 和Kotlin 1.9.24匹配的官方版本
+        suppressKotlinVersionCompatibilityCheck = true // 局部兼容开关，双重保障
     }
 
     externalNativeBuild {
@@ -78,26 +73,22 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
-            // 解决libc++_shared.so重复问题（保留NDK自带的版本）
             excludes += "**/libc++_shared.so"
         }
     }
 }
 
 dependencies {
-    // Compose依赖全部写死，不引入任何编译器相关依赖（由AGP自动管理）
+    // Compose依赖全写死，不引入任何编译器相关依赖，交给AGP自动管理
     implementation("androidx.compose.ui:ui:1.6.7")
     implementation("androidx.compose.ui:ui-graphics:1.6.7")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
     implementation("androidx.compose.material3:material3:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
 
-    // AndroidX基础依赖
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
-    
-    // OpenCV依赖（放在最后，避免拉取无关依赖）
     implementation("org.opencv:opencv:4.9.0")
 }
