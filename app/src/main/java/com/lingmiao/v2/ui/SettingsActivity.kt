@@ -107,6 +107,7 @@ fun SettingsScreen(
                 .padding(16.dp)
         ) {
 
+            // ── 辅助线颜色 ──
             SettingsSection(title = "🎨 辅助线颜色") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -135,6 +136,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // ── 辅助线粗细 ──
             SettingsSection(title = "📏 辅助线粗细: ${"%.1f".format(aimWidth)}") {
                 Slider(
                     value = aimWidth,
@@ -159,6 +161,7 @@ fun SettingsScreen(
                 }
             }
 
+            // ── 识别方案 ──
             SettingsSection(title = "🔍 图像识别方案") {
                 Column {
                     AppConfig.PRESETS.forEachIndexed { index, preset ->
@@ -171,73 +174,7 @@ fun SettingsScreen(
                                     AppConfig.detectMode = index
                                 }
                                 .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = detectMode == index,
-                                onClick = {
-                                    detectMode = index
-                                    BallDetector.applyPreset(index)
-                                    AppConfig.detectMode = index
-                                },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = Color(0xFF7C4DFF)
-                                )
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                Text(preset.name, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                Text(
-                                    "V=${preset.vThreshold} S=${preset.sMinDist} P=${preset.pSensitivity} dp=${preset.dp} (${preset.method})",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            SettingsSection(title = "🪞 反射方案") {
-                Column {
-                    reflectionModes.forEach { (key, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    reflectionMode = key
-                                    AppConfig.reflectionMode = key
-                                }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = reflectionMode == key,
-                                onClick = {
-                                    reflectionMode = key
-                                    AppConfig.reflectionMode = key
-                                },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = Color(0xFF7C4DFF)
-                                )
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(label, fontSize = 14.sp)
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text("补偿比例: ${"%.2f".format(compensationRatio)}", fontSize = 13.sp)
-                Slider(
-                    value = compensationRatio,
-                    onValueChange = {
-                        compensationRatio = it
-                        AppConfig.compensationRatio = it
-                    },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF7C4DFF),
+                            verticalColor = Color(0xFF7C4DFF),
                         activeTrackColor = Color(0xFF7C4DFF)
                     )
                 )
