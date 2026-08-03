@@ -26,6 +26,10 @@ import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.ball.BallDetector
 import com.lingmiao.v2.ui.theme.LingMiaoTheme
 
+// ========== 修复实验性 API 警告 ==========
+// 允许使用 Material 3 的实验性 API（如 TopAppBarDefaults.topAppBarColors）
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 class SettingsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
