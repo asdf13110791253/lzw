@@ -8,12 +8,6 @@ import android.os.IBinder
 import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
 
-/**
- * 前台保活服务
- * - 持续前台通知防止被系统回收
- * - 监听系统低内存事件
- * - 开机自启后会由 BootReceiver 拉起
- */
 class KeepAliveService : Service() {
 
     companion object {
@@ -46,20 +40,23 @@ class KeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 收到 start 后重新拉起关键服务
-        if (FloatingService::class.java.name !in (intent?.getStringArrayListExtra("running") ?: emptyList())) {
-            // 如果悬浮窗被杀了，尝试重启
-            EventBus.emit("service_restart_needed", "floating")
+        // 防御 intent 为 null（系统自动重启时）
+        if (intent != null) {
+            val running = intent.getStringArrayListExtra("running") ?: emptyList()
+            if (FloatingService::class.java.name !in running) {
+                EventBus.emit("service_restart_needed", "floating")
+            }
         }
-        return START_STICKY  // 被杀后自动重启
+        return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // 用户划掉最近任务时，尝试重启自己
         val restart = Intent(applicationContext, KeepAliveService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(restart)
+        } else {
+            startService(restart)
         }
         LogManager.w(TAG, "⚠️ 任务被移除，尝试保活")
     }
@@ -99,19 +96,30 @@ class KeepAliveService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification =
-        Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("灵喵 守护中")
-            .setContentText("保障悬浮辅助稳定运行")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-            .setOngoing(true)
-            .setPriority(Notification.PRIORITY_MIN)
-            .build()
+    private fun buildNotification(): Notification {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("灵喵 守护中")
+                .setContentText("保障悬浮辅助稳定运行")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+                .setOngoing(true)
+                .setPriority(Notification.PRIORITY_MIN)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("灵喵 守护中")
+                .setContentText("保障悬浮辅助稳定运行")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+                .setOngoing(true)
+                .setPriority(Notification.PRIORITY_MIN)
+                .build()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
         LogManager.service("🛡 保活服务已销毁（将被重启）")
-        // START_STICKY 会触发重启
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
