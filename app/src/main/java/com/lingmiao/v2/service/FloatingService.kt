@@ -10,26 +10,40 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.*
+import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
+import com.lingmiao.v2.engine.table.GeometryEngine
 
 class FloatingService : Service() {
 
     companion object {
+        const val TAG = "FloatingService"
+        const val NOTIFICATION_ID = 1001
+        const val CHANNEL_ID = "lingmiao_overlay"
+        const val ACTION_STOP = "com.lingmiao.v2.STOP_FLOATING"
+
         private var instance: FloatingService? = null
 
         fun start(context: Context) {
             if (!Settings.canDrawOverlays(context)) {
                 Toast.makeText(context, "请先开启悬浮窗权限", Toast.LENGTH_SHORT).show()
-                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}")
+                ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                context.startActivity(intent)
                 return
             }
-            val intent = Intent(context, FloatingService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-            else context.startService(intent)
+            val serviceIntent = Intent(context, FloatingService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
         }
 
         fun stop(context: Context) {
@@ -37,63 +51,325 @@ class FloatingService : Service() {
         }
     }
 
+    private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+
+    // 默认校准角（屏幕中心区域）
+    private var currentCorners = GeometryEngine.Corners(100f, 200f, 900f, 200f, 100f, 800f, 900f, 800f)
+    private val moveStep = 2f
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
         createNotificationChannel()
-        startForeground(1, buildNotification())
-        Toast.makeText(this, "悬浮服务已启动", Toast.LENGTH_SHORT).show()  // 验证服务启动
-        createOverlay()
+        startForeground(NOTIFICATION_ID, buildNotification())
+
+        LogManager.service("🎯 九宫格校准悬浮服务已创建")
+
+        if (!Settings.canDrawOverlays(this)) {
+            LogManager.e(TAG, "没有悬浮窗权限，停止服务")
+            stopSelf()
+            return
+        }
     }
 
-    private fun createOverlay() {
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val params = WindowManager.LayoutParams(
-            300, 200,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.CENTER }
-
-        // 简单红色面板
-        val panel = TextView(this).apply {
-            text = "✅ 悬浮窗测试\n点击保存校准"
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply { setColor(Color.RED); cornerRadius = 16f }
-            setOnClickListener {
-                Toast.makeText(context, "已保存测试校准", Toast.LENGTH_SHORT).show()
-            }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
         }
-        wm.addView(panel, params)
-        overlayView = panel
+        if (overlayView == null) createOverlay()
+        return START_STICKY
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager.IMPORTANCE_LOW.let {
-                NotificationChannel("test", "测试", it).also { channel ->
-                    (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
-                }
+            val channel = NotificationChannel(
+                CHANNEL_ID, "灵喵校准", NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "九宫格校准辅助运行中"
+                setShowBadge(false)
             }
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .createNotificationChannel(channel)
         }
     }
 
     private fun buildNotification(): Notification {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            Notification.Builder(this, "test").setContentTitle("测试服务").setSmallIcon(android.R.drawable.ic_menu_compass).build()
-        else
+        val stopIntent = Intent(this, FloatingService::class.java).apply { action = ACTION_STOP }
+        val pendingStop = PendingIntent.getService(
+            this, 0, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("灵喵 校准辅助")
+                .setContentText("正在调整对齐基准")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .setContentIntent(pendingStop)
+                .build()
+        } else {
             @Suppress("DEPRECATION")
-            Notification.Builder(this).setContentTitle("测试服务").setSmallIcon(android.R.drawable.ic_menu_compass).build()
+            Notification.Builder(this)
+                .setContentTitle("灵喵 校准辅助")
+                .setContentText("正在调整对齐基准")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .setContentIntent(pendingStop)
+                .setPriority(Notification.PRIORITY_LOW)
+                .build()
+        }
     }
 
-    override fun onBind(intent: Intent?) = null
+    private fun createOverlay() {
+        if (!Settings.canDrawOverlays(this)) {
+            LogManager.e(TAG, "createOverlay 失败: 无悬浮窗权限")
+            stopSelf()
+            return
+        }
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        )
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = 100
+        params.y = 300
+
+        val rootView = buildCalibrationPanel()
+
+        // 可拖动
+        rootView.setOnTouchListener(object : View.OnTouchListener {
+            private var initialX = 0
+            private var initialY = 0
+            private var initialTouchX = 0f
+            private var initialTouchY = 0f
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        params.x = initialX + (event.rawX - initialTouchX).toInt()
+                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        windowManager.updateViewLayout(rootView, params)
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
+        windowManager.addView(rootView, params)
+        overlayView = rootView
+        LogManager.service("✅ 九宫格校准面板已显示")
+    }
+
+    private fun buildCalibrationPanel(): LinearLayout {
+        val ctx = this
+
+        val bgDrawable = GradientDrawable().apply {
+            setColor(Color.argb(180, 30, 30, 30))
+            cornerRadius = 20f
+        }
+
+        val mainLayout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+            background = bgDrawable
+        }
+
+        // 第一行：田字格 + 上下箭头
+        val row1 = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        // 田字格（四个红色方块）
+        val gridBlock = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val rowA = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        rowA.addView(makeColorBlock(Color.RED, 20))
+        rowA.addView(makeColorBlock(Color.RED, 20))
+        val rowB = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        rowB.addView(makeColorBlock(Color.RED, 20))
+        rowB.addView(makeColorBlock(Color.RED, 20))
+        gridBlock.addView(rowA)
+        gridBlock.addView(rowB)
+
+        val arrowCol = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 0, 0, 0)
+        }
+        arrowCol.addView(makeArrowButton("▲", "up"))
+        arrowCol.addView(makeArrowButton("▼", "down"))
+
+        row1.addView(gridBlock)
+        row1.addView(arrowCol)
+        mainLayout.addView(row1)
+
+        // 第二行：左右箭头
+        val row2 = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 12, 0, 0)
+        }
+        row2.addView(makeArrowButton("◀", "left"))
+        row2.addView(View(ctx).apply { layoutParams = LinearLayout.LayoutParams(40, 1) })
+        row2.addView(makeArrowButton("▶", "right"))
+        mainLayout.addView(row2)
+
+        // 第三行：中间向上箭头
+        val row3 = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 12, 0, 0)
+        }
+        row3.addView(makeArrowButton("▲", "up"))
+        mainLayout.addView(row3)
+
+        // 底部：保存按钮 + 深蓝三角
+        val saveRow = RelativeLayout(ctx).apply {
+            setPadding(0, 16, 0, 0)
+        }
+
+        val saveBtn = Button(ctx).apply {
+            text = "保存"
+            setTextColor(Color.WHITE)
+            val btnBg = GradientDrawable().apply {
+                setColor(Color.argb(150, 180, 180, 180))
+                cornerRadius = 30f
+            }
+            background = btnBg
+            setOnClickListener {
+                saveCurrentCorners()
+                Toast.makeText(ctx, "校准数据已保存", Toast.LENGTH_SHORT).show()
+            }
+        }
+        val btnParams = RelativeLayout.LayoutParams(
+            RelativeLayout.LayoutParams.WRAP_CONTENT,
+            RelativeLayout.LayoutParams.WRAP_CONTENT
+        )
+        btnParams.addRule(RelativeLayout.CENTER_HORIZONTAL)
+        saveBtn.layoutParams = btnParams
+
+        val triangle = TextView(ctx).apply {
+            text = "◢"
+            setTextColor(Color.argb(255, 0, 50, 180))
+            textSize = 18f
+        }
+        val triParams = RelativeLayout.LayoutParams(
+            RelativeLayout.LayoutParams.WRAP_CONTENT,
+            RelativeLayout.LayoutParams.WRAP_CONTENT
+        )
+        triParams.addRule(RelativeLayout.ALIGN_PARENT_END)
+        triParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+        triangle.layoutParams = triParams
+
+        saveRow.addView(saveBtn)
+        saveRow.addView(triangle)
+        mainLayout.addView(saveRow)
+
+        return mainLayout
+    }
+
+    private fun makeColorBlock(color: Int, sizeDp: Int): View {
+        val px = (sizeDp * resources.displayMetrics.density).toInt()
+        val view = View(this)
+        view.layoutParams = LinearLayout.LayoutParams(px, px).apply {
+            setMargins(2, 2, 2, 2)
+        }
+        view.setBackgroundColor(color)
+        return view
+    }
+
+    private fun makeArrowButton(label: String, direction: String): Button {
+        return Button(this).apply {
+            text = label
+            setTextColor(Color.WHITE)
+            val btnBg = GradientDrawable().apply {
+                setColor(Color.argb(150, 100, 100, 100))
+                cornerRadius = 8f
+            }
+            background = btnBg
+            setOnClickListener {
+                adjustCorners(direction)
+            }
+        }
+    }
+
+    private fun adjustCorners(direction: String) {
+        currentCorners = when (direction) {
+            "up" -> currentCorners.copy(
+                tly = currentCorners.tly - moveStep,
+                try_ = currentCorners.try_ - moveStep
+            )
+            "down" -> currentCorners.copy(
+                tly = currentCorners.tly + moveStep,
+                try_ = currentCorners.try_ + moveStep,
+                bly = currentCorners.bly + moveStep,
+                bry = currentCorners.bry + moveStep
+            )
+            "left" -> currentCorners.copy(
+                tlx = currentCorners.tlx - moveStep,
+                blx = currentCorners.blx - moveStep
+            )
+            "right" -> currentCorners.copy(
+                tlx = currentCorners.tlx + moveStep,
+                blx = currentCorners.blx + moveStep,
+                trx = currentCorners.trx + moveStep,
+                brx = currentCorners.brx + moveStep
+            )
+            else -> currentCorners
+        }
+        // 实时反馈：可以在这里通过 EventBus 发送更新，或直接写入 SharedPreferences 预览
+        LogManager.d(TAG, "调整后角: $currentCorners")
+    }
+
+    private fun saveCurrentCorners() {
+        val prefs = getSharedPreferences("calibration", MODE_PRIVATE)
+        prefs.edit().apply {
+            putFloat("tlx", currentCorners.tlx)
+            putFloat("tly", currentCorners.tly)
+            putFloat("trx", currentCorners.trx)
+            putFloat("try_", currentCorners.try_)
+            putFloat("blx", currentCorners.blx)
+            putFloat("bly", currentCorners.bly)
+            putFloat("brx", currentCorners.brx)
+            putFloat("bry", currentCorners.bry)
+            apply()
+        }
+        EventBus.emitCalibrationUpdated(floatArrayOf(
+            currentCorners.tlx, currentCorners.tly,
+            currentCorners.trx, currentCorners.try_,
+            currentCorners.blx, currentCorners.bly,
+            currentCorners.brx, currentCorners.bry
+        ))
+        LogManager.geo("💾 校准数据已保存")
+    }
 
     override fun onDestroy() {
         super.onDestroy()
-        (overlayView?.parent as? WindowManager)?.removeView(overlayView)
+        instance = null
+        if (overlayView != null) {
+            try { windowManager.removeView(overlayView) } catch (_: Exception) {}
+            overlayView = null
+        }
+        LogManager.service("🛑 九宫格校准服务已销毁")
     }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 }
