@@ -32,8 +32,7 @@ jobs:
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
           mkdir -p ~/.android
           echo "count=0" > ~/.android/repositories.cfg
-          
-          # 生成 local.properties，解决 SDK 路径警告
+          # 生成 local.properties，解决 SDK 路径问题
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       - name: Accept Licenses & Install Android packages
@@ -41,11 +40,11 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      # 使用 Gradle 7.6（兼容旧版 Kotlin 插件，避免 NoSuchMethodError）
+      # 使用 Gradle 8.9（满足 AGP 8.5.x 的最低要求）
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: "7.6"
+          gradle-version: "8.9"
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
