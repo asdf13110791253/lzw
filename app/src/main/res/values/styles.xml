@@ -1,21 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.LingMiao" parent="android:Theme.Material.NoActionBar">
-        <item name="android:colorPrimary">#FF7C4DFF</item>
-        <item name="android:colorPrimaryDark">#FF4A148C</item>
-        <item name="android:colorAccent">#FFFF8C00</item>
-        <item name="android:windowBackground">#FF121212</item>
-        <item name="android:statusBarColor">#FF1A1A2E</item>
-        <item name="android:navigationBarColor">#FF121212</item>
-    </style>
-
-    <style name="Theme.LingMiao.NoActionBar" parent="Theme.LingMiao">
-        <item name="android:windowActionBar">false</item>
-        <item name="android:windowNoTitle">true</item>
-    </style>
-
-    <style name="Theme.LingMiao.FullScreen" parent="Theme.LingMiao.NoActionBar">
-        <item name="android:windowFullscreen">true</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    <style name="Theme.LingMiao" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#6200EE</item>
+        <item name="colorPrimaryDark">#3700B3</item>
+        <item name="colorAccent">#03DAC5</item>
+        <item name="android:statusBarColor">#6200EE</item>
     </style>
 </resources>
