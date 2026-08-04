@@ -20,7 +20,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 手动安装 Android SDK（不再依赖已弃用的 setup-android）
+      # 手动安装 Android SDK（不依赖已弃用的 setup-android）
       - name: Setup Android SDK
         run: |
           ANDROID_SDK_ROOT=${{ runner.temp }}/android-sdk
@@ -39,14 +39,9 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      - name: Clean Gradle Cache
-        run: |
-          rm -rf ~/.gradle/caches/
-          rm -rf ~/.gradle/wrapper/
-          rm -rf gradle/wrapper/dists/
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      # 自动补全 Gradle Wrapper，解决 ClassNotFoundException
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
