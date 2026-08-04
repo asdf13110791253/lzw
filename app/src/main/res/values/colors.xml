@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#FF7C4DFF</color>
-    <color name="primary_dark">#FF4A148C</color>
-    <color name="accent">#FFFF8C00</color>
-    <color name="bg_dark">#FF121212</color>
-    <color name="bg_card">#FF1E1E1E</color>
-    <color name="text_primary">#FFE0E0E0</color>
-    <color name="text_secondary">#FF9E9E9E</color>
-    <color name="aim_yellow">#FFFFFF00</color>
-    <color name="aim_red">#FFFF0000</color>
-    <color name="aim_green">#FF00FF00</color>
-    <color name="aim_blue">#FF0000FF</color>
-    <color name="aim_cyan">#FF00FFFF</color>
-    <color name="aim_magenta">#FFFF00FF</color>
-    <color name="aim_white">#FFFFFFFF</color>
-    <color name="aim_orange">#FFFF8C00</color>
+    <color name="primary">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="accent">#03DAC5</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="overlay_bg">#E8F5E9</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="line_red">#FF1744</color>
+    <color name="line_green">#00E676</color>
+    <color name="line_blue">#2979FF</color>
+    <color name="line_yellow">#FFD600</color>
+    <color name="line_cyan">#00E5FF</color>
 </resources>
