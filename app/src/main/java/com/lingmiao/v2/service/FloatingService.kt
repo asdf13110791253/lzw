@@ -14,7 +14,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.*
-import android.widget.LinearLayout
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.table.GeometryEngine
 
@@ -29,7 +28,6 @@ class FloatingService : Service() {
         const val ACTION_DOWN = "down"
         const val ACTION_LEFT = "left"
         const val ACTION_RIGHT = "right"
-        const val ACTION_SAVE = "save"
 
         private var instance: FloatingService? = null
 
@@ -187,13 +185,14 @@ class FloatingService : Service() {
 
         windowManager.addView(rootView, params)
         overlayView = rootView
-        LogManager.service("✅ 九宫格校准悬浮窗已创建")
+        LogManager.service("✅ 九宫格校准悬浮窗已创建（红色测试背景）")
     }
 
     private fun buildCalibrationPanel(): LinearLayout {
         val ctx = this
+        // 临时改成红色，方便验证
         val bgDrawable = GradientDrawable().apply {
-            setColor(Color.argb(180, 30, 30, 30))
+            setColor(Color.argb(200, 255, 0, 0))
             cornerRadius = 20f
         }
 
@@ -202,6 +201,16 @@ class FloatingService : Service() {
             setPadding(16, 16, 16, 16)
             background = bgDrawable
         }
+
+        // 标题
+        val title = TextView(ctx).apply {
+            text = "校准面板(测试)"
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 12)
+        }
+        mainLayout.addView(title)
 
         // 第一行：田字格 + 上下箭头
         val row1 = LinearLayout(ctx).apply {
@@ -213,11 +222,11 @@ class FloatingService : Service() {
             orientation = LinearLayout.VERTICAL
         }
         val rowA = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-        rowA.addView(makeColorBlock(Color.RED, 20))
-        rowA.addView(makeColorBlock(Color.RED, 20))
+        rowA.addView(makeColorBlock(Color.RED, 24))
+        rowA.addView(makeColorBlock(Color.RED, 24))
         val rowB = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-        rowB.addView(makeColorBlock(Color.RED, 20))
-        rowB.addView(makeColorBlock(Color.RED, 20))
+        rowB.addView(makeColorBlock(Color.RED, 24))
+        rowB.addView(makeColorBlock(Color.RED, 24))
         gridBlock.addView(rowA)
         gridBlock.addView(rowB)
 
@@ -252,7 +261,7 @@ class FloatingService : Service() {
         row3.addView(makeArrowButton("▲", ACTION_UP))
         mainLayout.addView(row3)
 
-        // 底部保存按钮（带三角形角标）
+        // 底部保存按钮
         val saveRow = RelativeLayout(ctx).apply {
             setPadding(0, 16, 0, 0)
         }
