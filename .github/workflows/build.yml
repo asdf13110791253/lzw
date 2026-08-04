@@ -39,9 +39,12 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      # 自动补全 Gradle Wrapper，解决 ClassNotFoundException
+      # 补全 Gradle Wrapper，并修复权限
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
