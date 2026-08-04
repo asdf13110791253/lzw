@@ -26,6 +26,7 @@ import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.engine.table.GeometryEngine
+import com.lingmiao.v2.service.FloatingService
 
 class CalibrateActivity : ComponentActivity() {
 
@@ -48,6 +49,16 @@ class CalibrateActivity : ComponentActivity() {
                 onCancel = { finish() }
             )
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        FloatingService.hideOverlay()   // 隐藏悬浮窗，释放触摸事件
+    }
+
+    override fun onPause() {
+        super.onPause()
+        FloatingService.showOverlay()   // 恢复悬浮窗显示
     }
 
     private fun saveCorners(corners: GeometryEngine.Corners) {
