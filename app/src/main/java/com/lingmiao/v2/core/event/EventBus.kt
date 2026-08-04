@@ -1,69 +1,127 @@
-package com.lingmiao.v2.core.event
+package com.lingmiao.v2.core
 
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import android.graphics.Bitmap
 
 /**
- * 灵喵事件总线 - Kotlin Flow 实现
- * 支持多订阅者、背压、生命周期感知
+ * 球体检测器 —— JNI 桥接层
+ *
+ * 对应 C++ 中的 native 方法：
+ * - detectBalls():  HSV 分割 + 霍夫圆变换，返回所有球的圆心坐标
+ * - computeAimLine(): 根据球的位置 + 袋口位置，计算辅助线
+ *
+ * 通用策略（不依赖任何特定游戏UI）：
+ * 1. 降分辨率到 640x360 再处理（性能提升 3x）
+ * 2. HSV 阈值找白球（V>200, S<30）
+ * 3. 霍夫圆变换找所有圆形物体
+ * 4. 按颜色/亮度分类：白球 / 目标球 / 袋口
+ * 5. 镜像点法计算击球路径
  */
-object EventBus {
+object BallDetector {
 
-    // ── 事件类型常量 ──
-    const val EVT_OVERLAY_CHANGED = "overlay_changed"
-    const val EVT_CALIBRATION_UPDATED = "calibration_updated"
-    const val EVT_DETECT_MODE_CHANGED = "detect_mode_changed"
-    const val EVT_AIM_CONFIG_CHANGED = "aim_config_changed"
-    const val EVT_PHYSICS_CHANGED = "physics_changed"
-    const val EVT_REFLECTION_CHANGED = "reflection_changed"
-    const val EVT_TABLE_TEXTURE_CHANGED = "table_texture_changed"
-    const val EVT_ORIENTATION_CHANGED = "orientation_changed"
-    const val EVT_REQUEST_SCREEN_CAPTURE = "request_screen_capture"
-    const val EVT_STOP_SCREEN_CAPTURE = "stop_screen_capture"
-    const val EVT_ERROR = "error"
-    const val EVT_TOAST = "toast"
-    const val EVT_BALLS_DETECTED = "balls_detected"
-    const val EVT_AIM_CALCULATED = "aim_calculated"
+    // ===== JNI 方法声明 =====
 
-    data class AppEvent(
-        val type: String,
-        val data: Any? = null,
-        val timestamp: Long = System.currentTimeMillis()
-    )
+    /**
+     * 检测屏幕中所有球体
+     * @param bitmap 屏幕截图（RGBA_8888）
+     * @param vThresh V通道阈值（亮度）
+     * @param sThresh S通道阈值（饱和度）
+     * @param pThresh 霍夫圆 param2 阈值（越小检测越多）
+     * @return FloatArray: [x0,y0,r0, x1,y1,r1, ...] 白球在前，其余按大小排序
+     */
+    external fun nativeDetectBalls(
+        bitmap: Bitmap,
+        vThresh: Int,
+        sThresh: Int,
+        pThresh: Int
+    ): FloatArray?
 
-    // 热流：新订阅者收不到旧事件
-    private val _events = MutableSharedFlow<AppEvent>(
-        replay = 0,
-        extraBufferCapacity = 64
-    )
-    val events: SharedFlow<AppEvent> = _events.asSharedFlow()
+    /**
+     * 计算辅助线坐标
+     * @param balls nativeDetectBalls 的返回值
+     * @param mode "mirror"=镜像反射 / "compensation"=角度补偿
+     * @param bankCount 翻袋库数（反射次数）
+     * @return FloatArray: [x0,y0, x1,y1, x2,y2, ...] 连线点序列
+     */
+    external fun nativeComputeAimLine(
+        balls: FloatArray,
+        mode: String,
+        bankCount: Int
+    ): FloatArray?
 
-    // 状态流：新订阅者立即收到最新值
-    private val _stateEvents = MutableSharedFlow<AppEvent>(
-        replay = 1,
-        extraBufferCapacity = 16
-    )
-    val stateEvents: SharedFlow<AppEvent> = _stateEvents.asSharedFlow()
+    /**
+     * 透视校正：把屏幕坐标映射到标准球桌坐标
+     * @param screenPoints 屏幕上的四个角点
+     * @param tableWidth 标准球桌宽度（mm 或任意单位）
+     * @param tableHeight 标准球桌高度
+     * @return 3x3 透视变换矩阵（行优先）
+     */
+    external fun nativeComputePerspectiveMatrix(
+        screenPoints: FloatArray,
+        tableWidth: Float,
+        tableHeight: Float
+    ): FloatArray?
 
-    // ── 发送方法 ──
-    fun emit(type: String, data: Any? = null) {
-        val event = AppEvent(type, data)
-        _events.tryEmit(event)
-        _stateEvents.tryEmit(event)
+    // ===== Kotlin 封装 =====
+
+    fun detect(bitmap: Bitmap): DetectionResult {
+        val raw = nativeDetectBalls(
+            bitmap,
+            AppConfig.hsvV,
+            AppConfig.hsvS,
+            AppConfig.hsvP
+        ) ?: return DetectionResult.EMPTY
+
+        // 解析：[白球x,y,r, 目标球1x,y,r, 目标球2x,y,r, ...]
+        val balls = mutableListOf<Ball>()
+        for (i in raw.indices step 3) {
+            balls.add(Ball(raw[i], raw[i + 1], raw[i + 2]))
+        }
+
+        // 第一个是白球（C++ 保证）
+        val cueBall = balls.firstOrNull()
+        val targetBalls = balls.drop(1)
+
+        return DetectionResult(cueBall, targetBalls, raw)
     }
 
-    fun emitState(type: String, data: Any? = null) {
-        _stateEvents.tryEmit(AppEvent(type, data))
+    fun computeAimLine(detection: DetectionResult): AimLine? {
+        if (detection.raw.isEmpty()) return null
+        val points = nativeComputeAimLine(
+            detection.raw,
+            AppConfig.reflectionMode,
+            AppConfig.bankCount
+        ) ?: return null
+
+        val lines = mutableListOf<LineSegment>()
+        for (i in 0 until points.size - 2 step 2) {
+            lines.add(
+                LineSegment(
+                    PointF(points[i], points[i + 1]),
+                    PointF(points[i + 2], points[i + 3])
+                )
+            )
+        }
+        return AimLine(lines, points)
     }
 
-    // ── 便捷方法 ──
-    fun emitOverlayChanged(enabled: Boolean) = emit(EVT_OVERLAY_CHANGED, enabled)
-    fun emitCalibrationUpdated(corners: FloatArray) = emit(EVT_CALIBRATION_UPDATED, corners)
-    fun emitDetectModeChanged(mode: Int) = emit(EVT_DETECT_MODE_CHANGED, mode)
-    fun emitAimConfigChanged(color: Int, width: Float) = emit(EVT_AIM_CONFIG_CHANGED, intArrayOf(color, width.toInt()))
-    fun emitError(msg: String, code: Int = 0) = emit(EVT_ERROR, "$code:$msg")
-    fun emitToast(msg: String) = emit(EVT_TOAST, msg)
-    fun emitBallsDetected(count: Int) = emit(EVT_BALLS_DETECTED, count)
-    fun emitAimCalculated(data: FloatArray) = emit(EVT_AIM_CALCULATED, data)
+    // ===== 数据类 =====
+
+    data class Ball(val x: Float, val y: Float, val radius: Float)
+    data class PointF(val x: Float, val y: Float)
+    data class LineSegment(val start: PointF, val end: PointF)
+
+    data class DetectionResult(
+        val cueBall: Ball?,
+        val targetBalls: List<Ball>,
+        val raw: FloatArray
+    ) {
+        companion object {
+            val EMPTY = DetectionResult(null, emptyList(), FloatArray(0))
+        }
+    }
+
+    data class AimLine(
+        val segments: List<LineSegment>,
+        val rawPoints: FloatArray
+    )
 }
