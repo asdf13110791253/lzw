@@ -1,43 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.lingmiao.v2"
+    platformBuildVersionCode="34"
+    platformBuildVersionName="14"
+    android:versionCode="1"
+    android:versionName="1.0"
+    android:compileSdkVersion="34"
+    android:compileSdkVersionCodename="14">
+    <uses-sdk
+        android:minSdkVersion="24"
+        android:targetSdkVersion="34" />
 
-    <!-- ===== 核心权限 ===== -->
-    <!-- 悬浮窗 -->
+    <!-- ===== 权限 ===== -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- 前台服务（Android 14+ 必须细分类型） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
-    <!-- 通知 -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- 保活 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <!-- 网络 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
-    <!-- 硬件特性（明确不用摄像头） -->
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <permission
+        android:name="com.lingmiao.v2.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.lingmiao.v2.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 
     <application
         android:name=".App"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LingMiao"
-        android:largeHeap="true">
+        android:extractNativeLibs="true"
+        android:usesCleartextTraffic="true"
+        android:largeHeap="true"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        tools:targetApi="s">
 
-        <!-- 主界面 -->
+        <!-- 主界面（入口） -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -73,34 +77,41 @@
             android:exported="false"
             android:theme="@style/Theme.LingMiao.NoActionBar" />
 
-        <!-- 悬浮窗服务（修正：改为 specialUse，不再依赖 mediaProjection 权限） -->
+        <!-- 录屏权限请求（透明） -->
+        <activity
+            android:name=".ui.MediaProjectionRequestActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- 录屏服务（mediaProjection类型） -->
+        <service
+            android:name=".service.ScreenCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <!-- 悬浮窗服务（specialUse类型） -->
         <service
             android:name=".service.FloatingService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="显示辅助悬浮窗" />
+                android:value="显示辅助悬浮窗"
+                tools:targetApi="s" />
         </service>
 
-        <!-- 录屏服务（保留 mediaProjection，它确实需要此权限） -->
-        <service
-            android:name=".service.ScreenCaptureService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
-
-        <!-- 前台保活服务（已经是 specialUse，保持不变） -->
+        <!-- 保活服务（specialUse类型） -->
         <service
             android:name=".service.KeepAliveService"
             android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:stopWithTask="false">
+            android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="保活与辅助功能" />
+                android:value="保活与辅助功能"
+                tools:targetApi="s" />
         </service>
 
-        <!-- 开机自启 -->
+        <!-- 开机自启广播 -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="true"
@@ -112,11 +123,58 @@
             </intent-filter>
         </receiver>
 
-        <!-- MediaProjection 回调 Activity（不显示UI） -->
-        <activity
-            android:name=".ui.MediaProjectionRequestActivity"
+        <!-- ===== 下面的 Provider 是复制过来的，如果你不需要 Sentry 可删除 ===== -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:authorities="com.lingmiao.v2.androidx-startup">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+        <provider
+            android:name="io.sentry.android.core.SentryInitProvider"
+            android:exported="false"
+            android:authorities="com.lingmiao.v2.SentryInitProvider" />
+        <provider
+            android:name="io.sentry.android.core.SentryPerformanceProvider"
+            android:exported="false"
+            android:authorities="com.lingmiao.v2.SentryPerformanceProvider"
+            android:initOrder="200" />
+
+        <uses-library
+            android:name="androidx.window.extensions"
+            android:required="false" />
+        <uses-library
+            android:name="androidx.window.sidecar"
+            android:required="false" />
+
+        <receiver
+            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+            android:permission="android.permission.DUMP"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>
