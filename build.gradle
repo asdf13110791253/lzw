@@ -1,25 +1,11 @@
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-    plugins {
-        id("com.android.application") version "8.5.2"
-        id("com.android.library") version "8.5.2"
-        id("org.jetbrains.kotlin.android") version "1.9.22"
-        id("org.jetbrains.kotlin.kapt") version "1.9.22"
-    }
+// Top-level build file
+plugins {
+    id 'com.android.application' apply false
+    id 'com.android.library' apply false
+    id 'org.jetbrains.kotlin.android' apply false
+    id 'org.jetbrains.kotlin.kapt' apply false
 }
 
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://jitpack.io") }
-    }
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
-
-rootProject.name = "LingMiaoV2"
-include(":app")
