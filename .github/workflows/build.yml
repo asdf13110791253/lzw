@@ -20,7 +20,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 手动安装 Android SDK（不依赖已弃用的 setup-android）
       - name: Setup Android SDK
         run: |
           ANDROID_SDK_ROOT=${{ runner.temp }}/android-sdk
@@ -39,15 +38,11 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      # 补全 Gradle Wrapper，并修复权限
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --stacktrace
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/26.1.10909125
 
