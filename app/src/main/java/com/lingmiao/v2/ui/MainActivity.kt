@@ -1,7 +1,6 @@
 package com.lingmiao.v2
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -23,16 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.lingmiao.v2.core.config.AppConfig
 import com.lingmiao.v2.core.event.EventBus
-import com.lingmiao.v2.core.event.EventBus.AppEvent
 import com.lingmiao.v2.core.log.LogManager
 import com.lingmiao.v2.service.FloatingService
 import com.lingmiao.v2.service.KeepAliveService
-import com.lingmiao.v2.ui.CalibrateActivity
 import com.lingmiao.v2.ui.GuideActivity
 import com.lingmiao.v2.ui.SettingsActivity
 import com.lingmiao.v2.ui.theme.LingMiaoTheme
@@ -70,8 +66,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var testBitmap by mutableStateOf<android.graphics.Bitmap?>(null)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -88,7 +82,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(
                         onStartOverlay = { checkAndRequestPermissions() },
-                        onOpenCalibrate = { startActivity(Intent(this, CalibrateActivity::class.java)) },
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                         onOpenGuide = { startActivity(Intent(this, GuideActivity::class.java)) },
                         onTestOpenCV = { testOpenCV() },
@@ -113,7 +106,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndRequestPermissions() {
-        // 1. 悬浮窗权限（必须运行时授权）
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -123,7 +115,6 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        // 2. 通知权限（Android 13+，可选但建议授权）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -131,19 +122,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 3. 启动悬浮窗服务
         proceedAfterPermissions()
     }
 
     private fun proceedAfterPermissions() {
         FloatingService.start(this)
         AppConfig.isOverlayEnabled = true
-        LogManager.service("🎯 悬浮辅助已启动")
+        LogManager.service("🎯 悬浮校准面板已启动")
     }
 
     private fun testOpenCV() {
         try {
-            LogManager.i("OpenCV", "OpenCV 测试方法（已跳过，请添加测试图片）")
+            LogManager.i("OpenCV", "OpenCV 测试方法（已跳过）")
         } catch (e: Exception) {
             LogManager.e("OpenCV", "❌ OpenCV测试异常：${e.message}")
         }
@@ -161,7 +151,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     onStartOverlay: () -> Unit,
-    onOpenCalibrate: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGuide: () -> Unit,
     onTestOpenCV: () -> Unit,
@@ -210,7 +199,7 @@ fun MainScreen(
             )
         ) {
             Text(
-                text = if (localOverlayEnabled) "🎯 悬浮辅助运行中" else "▶ 启动悬浮辅助",
+                text = if (localOverlayEnabled) "🎯 校准面板运行中" else "▶ 启动校准面板",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -227,16 +216,6 @@ fun MainScreen(
         }
 
         Spacer(Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = onOpenCalibrate,
-            modifier = Modifier.fillMaxWidth(0.8f).height(50.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("📐 四角校准", fontSize = 16.sp)
-        }
-
-        Spacer(Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onOpenSettings,
@@ -258,7 +237,7 @@ fun MainScreen(
         Spacer(Modifier.weight(1f))
 
         Text(
-            text = if (localOverlayEnabled) "运行中 · 60fps · 已校准 · OpenCV已加载" else "待启动 · OpenCV就绪",
+            text = if (localOverlayEnabled) "校准面板运行中 · OpenCV已加载" else "待启动 · OpenCV就绪",
             fontSize = 12.sp,
             color = if (localOverlayEnabled) Color(0xFF4CAF50) else Color.Gray
         )
