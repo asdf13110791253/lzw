@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import com.lingmiao.v2.core.log.LogManager
@@ -25,6 +26,8 @@ class FloatingService : Service() {
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "lingmiao_overlay"
         const val ACTION_STOP = "com.lingmiao.v2.STOP_FLOATING"
+
+        private var instance: FloatingService? = null
 
         fun start(context: Context) {
             if (!Settings.canDrawOverlays(context)) {
@@ -50,6 +53,16 @@ class FloatingService : Service() {
         fun stop(context: Context) {
             context.stopService(Intent(context, FloatingService::class.java))
         }
+
+        // 新增：隐藏悬浮窗（校准时调用）
+        fun hideOverlay() {
+            instance?.overlayView?.visibility = View.GONE
+        }
+
+        // 新增：恢复悬浮窗显示
+        fun showOverlay() {
+            instance?.overlayView?.visibility = View.VISIBLE
+        }
     }
 
     private lateinit var windowManager: WindowManager
@@ -67,6 +80,7 @@ class FloatingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this   // 保存实例，供静态方法调用
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         renderer = OverlayRenderer(geometry)
 
@@ -135,7 +149,7 @@ class FloatingService : Service() {
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .setContentIntent(pendingStop)
-                .setPriority(Notification.PRIORITY_LOW) // 注意：正确方法名是 setPriority
+                .setPriority(Notification.PRIORITY_LOW)
                 .build()
         }
     }
@@ -166,6 +180,7 @@ class FloatingService : Service() {
         val sv = SurfaceView(this).apply {
             setZOrderOnTop(true)
             setBackgroundColor(Color.TRANSPARENT)
+            visibility = View.VISIBLE   // 默认可见，便于控制隐藏/显示
         }
 
         sv.holder.setFormat(PixelFormat.TRANSLUCENT)
@@ -240,6 +255,7 @@ class FloatingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
         stopRenderLoop()
 
         if (overlayView != null) {
