@@ -2,13 +2,22 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:background="@android:color/transparent"
+    android:layerType="hardware">
 
-    <!-- SurfaceView for 60fps hardware-accelerated rendering -->
+    <!-- 主绘制 SurfaceView：接收 C++ 层回传的坐标并绘制辅助线 -->
     <SurfaceView
         android:id="@+id/overlay_surface"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/transparent" />
+
+    <!-- 控制面板容器（可拖动、可折叠） -->
+    <FrameLayout
+        android:id="@+id/control_panel_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp" />
 
 </FrameLayout>
