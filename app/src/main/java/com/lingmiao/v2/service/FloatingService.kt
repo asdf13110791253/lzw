@@ -3,7 +3,9 @@ package com.lingmiao.v2.service
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.*
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -158,7 +160,6 @@ class FloatingService : Service() {
 
         val rootView = buildCalibrationPanel()
 
-        // 拖动功能
         rootView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -191,7 +192,6 @@ class FloatingService : Service() {
 
     private fun buildCalibrationPanel(): LinearLayout {
         val ctx = this
-        // 半透明深灰背景
         val bgDrawable = GradientDrawable().apply {
             setColor(Color.argb(180, 30, 30, 30))
             cornerRadius = 20f
@@ -209,7 +209,6 @@ class FloatingService : Service() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        // 田字格方块（四个红色小方块）
         val gridBlock = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -222,7 +221,6 @@ class FloatingService : Service() {
         gridBlock.addView(rowA)
         gridBlock.addView(rowB)
 
-        // 上下箭头列
         val arrowCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16, 0, 0, 0)
@@ -241,7 +239,7 @@ class FloatingService : Service() {
             setPadding(0, 12, 0, 0)
         }
         row2.addView(makeArrowButton("◀", ACTION_LEFT))
-        row2.addView(View(ctx).apply { layoutParams = LinearLayout.LayoutParams(40, 1) }) // 间隔
+        row2.addView(View(ctx).apply { layoutParams = LinearLayout.LayoutParams(40, 1) })
         row2.addView(makeArrowButton("▶", ACTION_RIGHT))
         mainLayout.addView(row2)
 
@@ -267,7 +265,6 @@ class FloatingService : Service() {
             }
             background = btnBg
             setOnClickListener {
-                // 保存当前校准角
                 val prefs = ctx.getSharedPreferences("calibration", MODE_PRIVATE)
                 prefs.edit().apply {
                     putFloat("tlx", currentCorners.tlx); putFloat("tly", currentCorners.tly)
@@ -283,7 +280,6 @@ class FloatingService : Service() {
         paramsBtn.addRule(RelativeLayout.CENTER_HORIZONTAL)
         saveBtn.layoutParams = paramsBtn
 
-        // 右下角深蓝色三角形（用TextView + 旋转或直接绘制，这里简化用一个小块）
         val triangle = TextView(ctx).apply {
             text = "◢"
             setTextColor(Color.argb(255, 0, 50, 180))
@@ -329,7 +325,6 @@ class FloatingService : Service() {
                     ACTION_RIGHT -> currentCorners.copy(tlx = currentCorners.tlx + step, trx = currentCorners.trx + step)
                     else -> currentCorners
                 }
-                // 可以触发渲染更新，这里暂时省略
             }
         }
         return btn
@@ -343,7 +338,6 @@ class FloatingService : Service() {
                 val now = System.currentTimeMillis()
                 val elapsed = now - lastFrameTime
                 if (elapsed >= targetFrameTime) {
-                    // 这里可以绘制半透明引导线（Canvas绘制在overlayView上）
                     lastFrameTime = now
                     frameCount++
                     if (now - fpsTimer >= 1000) {
