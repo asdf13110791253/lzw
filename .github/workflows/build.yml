@@ -1,12 +1,15 @@
 name: Build APK
+
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,19 +20,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 换阿里云SDK镜像，解决SDK下载超时
-      - name: Switch SDK to Aliyun Mirror
+      # ============================================================
+      # 关键修复：强制使用阿里云镜像（解决官方源超时/404）
+      # ============================================================
+      - name: Set up Android SDK Mirror
         run: |
           mkdir -p ~/.android
-          cat > ~/.android/repositories.cfg << EOF
-          count=0
-          EOF
-          cat > $ANDROID_SDK_ROOT/tools/package.xml << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <packages>
-            <remote url="https://mirrors.aliyun.com/android/repository/" />
-          </packages>
-          EOF
+          echo "count=0" > ~/.android/repositories.cfg
+          # 设置环境变量，强制 sdkmanager 走阿里云
+          echo "SDKMANAGER_FORCE_HTTP=true" >> $GITHUB_ENV
+          echo "https_proxy=http://mirrors.aliyun.com:80" >> $GITHUB_ENV
+          echo "http_proxy=http://mirrors.aliyun.com:80" >> $GITHUB_ENV
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -39,16 +40,23 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      # 强制清缓存，避免旧配置干扰
+      # ============================================================
+      # 清理环境 & 准备构建
+      # ============================================================
       - name: Clean Gradle Cache
-        run: rm -rf ~/.gradle/caches/ ~/.gradle/wrapper/
+        run: |
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.gradle/wrapper/
+          rm -rf gradle/wrapper/dists/
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # 只编Debug包，减少出错概率
+      # ============================================================
+      # 开始构建
+      # ============================================================
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/26.1.10909125
 
