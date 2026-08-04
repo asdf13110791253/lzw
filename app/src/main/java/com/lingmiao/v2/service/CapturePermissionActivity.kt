@@ -1,39 +1,52 @@
 package com.lingmiao.v2.service
 
-import android.app.*
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
-import android.net.Uri
-import android.os.Build
-import android.os.IBinder
-import android.provider.Settings
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
-import android.widget.*
-import com.lingmiao.v2.core.log.LogManager
+import android.media.projection.MediaProjectionManager
+import android.os.Bundle
 
-class FloatingService : Service() {
+/**
+ * 录屏授权中转 Activity
+ *
+ * 为什么需要这个 Activity？
+ * - MediaProjection.createScreenCaptureIntent() 必须在一个 Activity 中启动
+ * - 但我们的 CaptureService 是后台服务，没有 Activity
+ * - 所以用一个"透明无UI"的 Activity 来中转：
+ *   1. 收到 Service 的 Intent → 启动系统录屏授权弹窗
+ *   2. 用户同意 → 把 resultCode + data 传回 Service
+ *   3. 用户拒绝 → 通知 Service 停止
+ */
+class CapturePermissionActivity : Activity() {
 
     companion object {
-        const val NOTIFICATION_ID = 1001
-        const val CHANNEL_ID = "test_channel"
+        const val REQUEST_CODE = 1001
+    }
 
-        fun start(context: Context) {
-            if (!Settings.canDrawOverlays(context)) {
-                Toast.makeText(context, "请先开启悬浮窗权限", Toast.LENGTH_SHORT).show()
-                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-                return
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val mpm = getSystemService(MediaProjectionManager::class.java)
+        val intent = mpm.createScreenCaptureIntent()
+        startActivityForResult(intent, REQUEST_CODE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == REQUEST_CODE) {
+            if (resultCode == RESULT_OK && data != null) {
+                // 用户同意 → 启动 CaptureService 并传入授权结果
+                val serviceIntent = Intent(this, CaptureService::class.java).apply {
+                    putExtra("resultCode", resultCode)
+                    putExtra("data", data)
+                }
+                startForegroundService(serviceIntent)
             }
-            val intent = Intent(context, FloatingService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-            else context.startService(intent)
+            // 无论成功失败，这个中转 Activity 都可以关闭了
+            finish()
         }
-
+    }
+}
         fun stop(context: Context) {
             context.stopService(Intent(context, FloatingService::class.java))
         }
