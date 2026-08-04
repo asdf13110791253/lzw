@@ -35,23 +35,23 @@ jobs:
           distribution: 'temurin'
 
       # --------------------------------------------------------
-      # 3. 安装 Gradle 8.4（用来生成 wrapper jar）
+      # 3. 安装 Gradle 8.7（用来生成 wrapper jar）✅ 已修改
       # --------------------------------------------------------
       - name: Install Gradle
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/gradle.zip
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip -O /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /opt/
-          ln -sf /opt/gradle-8.4/bin/gradle /usr/local/bin/gradle
+          ln -sf /opt/gradle-8.7/bin/gradle /usr/local/bin/gradle
           gradle --version
 
       # --------------------------------------------------------
-      # 4. 生成 gradle-wrapper.jar（如果缺失的话）
+      # 4. 生成 gradle-wrapper.jar（如果缺失的话）✅ 已修改
       # --------------------------------------------------------
       - name: Ensure Gradle Wrapper JAR exists
         run: |
           if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
             echo "gradle-wrapper.jar 缺失，正在生成..."
-            gradle wrapper --gradle-version 8.4 --distribution-type bin
+            gradle wrapper --gradle-version 8.7 --distribution-type bin
           fi
           ls -la gradle/wrapper/
           # 验证 jar 文件有效
