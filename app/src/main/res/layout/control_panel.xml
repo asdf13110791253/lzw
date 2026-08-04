@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/panel_bg"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="等待启动"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btn_toggle_line"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="隐藏线"
+            android:textSize="10sp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="8dp" />
+
+        <Button
+            android:id="@+id/btn_capture"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="截图"
+            android:textSize="10sp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="8dp"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/btn_close"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="关闭"
+            android:textSize="10sp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="8dp"
+            android:layout_marginStart="4dp" />
+
+    </LinearLayout>
+</LinearLayout>
