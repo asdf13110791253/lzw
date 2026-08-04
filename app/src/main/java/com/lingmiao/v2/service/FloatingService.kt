@@ -8,6 +8,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
+import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
 import android.view.MotionEvent
@@ -45,8 +46,6 @@ class FloatingService : Service() {
 
     private lateinit var wm: WindowManager
     private var rootView: RelativeLayout? = null
-    private var rectView: View? = null          // 半透明矩形
-    private var resizeHandle: View? = null      // 右下角手柄
     private var layoutParams: WindowManager.LayoutParams? = null
 
     // 矩形区域参数（相对于屏幕）
@@ -55,7 +54,6 @@ class FloatingService : Service() {
     private var rectW = 600f
     private var rectH = 400f
 
-    // 微调步长
     private val moveStep = 5f
     private val resizeStep = 10f
 
@@ -74,7 +72,6 @@ class FloatingService : Service() {
             return
         }
 
-        // 窗口参数：全屏大小，但只占据指定区域
         layoutParams = WindowManager.LayoutParams(
             rectW.toInt(), rectH.toInt(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -88,76 +85,95 @@ class FloatingService : Service() {
         }
 
         val ctx = this
+
+        // 半透明矩形背景
+        val rectBackground = View(ctx).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.argb(60, 255, 255, 255))
+                setStroke(2, Color.argb(200, 100, 200, 255))
+                cornerRadius = 8f
+            }
+        }
+
+        // 方向键面板
+        val btnPanel = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        val btnUp = makeArrowButton("▲") { adjustPosition(0f, -moveStep) }
+        val midRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val btnLeft = makeArrowButton("◀") { adjustPosition(-moveStep, 0f) }
+        val btnRight = makeArrowButton("▶") { adjustPosition(moveStep, 0f) }
+        midRow.addView(btnLeft)
+        midRow.addView(btnRight)
+        val btnDown = makeArrowButton("▼") { adjustPosition(0f, moveStep) }
+        btnPanel.addView(btnUp)
+        btnPanel.addView(midRow)
+        btnPanel.addView(btnDown)
+
+        // 保存按钮
+        val saveBtn = Button(ctx).apply {
+            text = "保存"
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(200, 100, 100, 100))
+                cornerRadius = 20f
+            }
+            setOnClickListener { saveCalibration() }
+        }
+
+        // 右下角拖拽手柄
+        val handle = TextView(ctx).apply {
+            text = "◢"
+            setTextColor(Color.argb(255, 0, 120, 255))
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setPadding(8, 8, 8, 8)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(100, 0, 0, 0))
+                cornerRadius = 8f
+            }
+            setOnTouchListener(handleTouchListener)
+        }
+
         val root = RelativeLayout(ctx).apply {
-            // 半透明矩形背景
-            val bg = View(ctx).apply {
-                background = GradientDrawable().apply {
-                    setColor(Color.argb(60, 255, 255, 255))
-                    setStroke(2, Color.argb(200, 100, 200, 255))
-                    cornerRadius = 8f
-                }
-            }
-            addView(bg, RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT))
+            addView(rectBackground, RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT))
 
-            // 右下角拖拽手柄
-            val handle = TextView(ctx).apply {
-                text = "◢"
-                setTextColor(Color.argb(255, 0, 120, 255))
-                textSize = 24f
-                gravity = Gravity.CENTER
-                setPadding(8, 8, 8, 8)
-                background = GradientDrawable().apply { setColor(Color.argb(100, 0, 0, 0)); cornerRadius = 8f }
-                setOnTouchListener(handleTouchListener)
-            }
-            val handleParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                addRule(RelativeLayout.ALIGN_PARENT_RIGHT)
-            }
-            addView(handle, handleParams)
-            resizeHandle = handle
-
-            // 方向键面板（放在矩形内部偏上位置）
-            val btnPanel = LinearLayout(ctx).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-            }
-            // 上按钮
-            val btnUp = makeArrowButton("▲") { adjustPosition(0, -moveStep) }
-            val midRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-            val btnLeft = makeArrowButton("◀") { adjustPosition(-moveStep, 0f) }
-            val btnRight = makeArrowButton("▶") { adjustPosition(moveStep, 0f) }
-            midRow.addView(btnLeft)
-            midRow.addView(btnRight)
-            val btnDown = makeArrowButton("▼") { adjustPosition(0f, moveStep) }
-            btnPanel.addView(btnUp)
-            btnPanel.addView(midRow)
-            btnPanel.addView(btnDown)
-            val panelParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
-                addRule(RelativeLayout.CENTER_IN_PARENT)
-            }
+            // 方向键居中
+            val panelParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply { addRule(RelativeLayout.CENTER_IN_PARENT) }
             addView(btnPanel, panelParams)
 
-            // 保存按钮（底部居中）
-            val saveBtn = Button(ctx).apply {
-                text = "保存"
-                setTextColor(Color.WHITE)
-                background = GradientDrawable().apply { setColor(Color.argb(200, 100, 100, 100)); cornerRadius = 20f }
-                setOnClickListener { saveCalibration() }
-            }
-            val saveParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
+            // 保存按钮底部居中
+            val saveParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
                 addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
                 addRule(RelativeLayout.CENTER_HORIZONTAL)
                 bottomMargin = 50
             }
             addView(saveBtn, saveParams)
+
+            // 右下角手柄
+            val handleParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                addRule(RelativeLayout.ALIGN_PARENT_RIGHT)
+            }
+            addView(handle, handleParams)
         }
 
-        // 整体拖动（在非按钮区域有效）
+        // 整体拖动
         root.setOnTouchListener(overallDragListener)
 
         wm.addView(root, layoutParams)
         rootView = root
-        rectView = bg
     }
 
     // 整体拖动的触摸监听器
@@ -182,7 +198,7 @@ class FloatingService : Service() {
         }
     }
 
-    // 右下角拖拽调整大小的触摸监听器
+    // 右下角拖拽调整大小
     private val handleTouchListener = View.OnTouchListener { v, event ->
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -216,14 +232,16 @@ class FloatingService : Service() {
         return Button(this).apply {
             text = label
             setTextColor(Color.WHITE)
-            background = GradientDrawable().apply { setColor(Color.argb(150, 80, 80, 80)); cornerRadius = 8f }
+            background = GradientDrawable().apply {
+                setColor(Color.argb(150, 80, 80, 80))
+                cornerRadius = 8f
+            }
             setOnClickListener { action() }
         }
     }
 
     private fun saveCalibration() {
         val prefs = getSharedPreferences("calibration", MODE_PRIVATE)
-        // 将矩形转换为四个角坐标
         val tlx = rectX
         val tly = rectY
         val trx = rectX + rectW
@@ -258,10 +276,22 @@ class FloatingService : Service() {
         val stopIntent = Intent(this, FloatingService::class.java).apply { action = "STOP" }
         val pi = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID).setContentTitle("校准框运行中").setContentText("拖拽手柄调整大小").setSmallIcon(android.R.drawable.ic_menu_compass).setOngoing(true).setContentIntent(pi).build()
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("校准框运行中")
+                .setContentText("拖拽手柄调整大小")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .setContentIntent(pi)
+                .build()
         } else {
             @Suppress("DEPRECATION")
-            Notification.Builder(this).setContentTitle("校准框运行中").setContentText("拖拽手柄调整大小").setSmallIcon(android.R.drawable.ic_menu_compass).setOngoing(true).setContentIntent(pi).build()
+            Notification.Builder(this)
+                .setContentTitle("校准框运行中")
+                .setContentText("拖拽手柄调整大小")
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .setContentIntent(pi)
+                .build()
         }
     }
 
