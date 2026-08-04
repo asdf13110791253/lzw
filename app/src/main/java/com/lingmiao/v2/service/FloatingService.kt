@@ -11,21 +11,16 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.*
-import com.lingmiao.v2.core.event.EventBus
 import com.lingmiao.v2.core.log.LogManager
 
 class FloatingService : Service() {
 
     companion object {
-        const val TAG = "CalibrationOverlay"
         const val NOTIFICATION_ID = 1001
-        const val CHANNEL_ID = "calibration_overlay"
-
-        private var instance: FloatingService? = null
+        const val CHANNEL_ID = "test_channel"
 
         fun start(context: Context) {
             if (!Settings.canDrawOverlays(context)) {
@@ -44,229 +39,47 @@ class FloatingService : Service() {
         }
     }
 
-    private lateinit var wm: WindowManager
-    private var rootView: RelativeLayout? = null
-    private var layoutParams: WindowManager.LayoutParams? = null
-
-    // 矩形区域参数（相对于屏幕）
-    private var rectX = 100f
-    private var rectY = 300f
-    private var rectW = 600f
-    private var rectH = 400f
-
-    private val moveStep = 5f
-    private val resizeStep = 10f
-
     override fun onCreate() {
         super.onCreate()
-        instance = this
-        wm = getSystemService(WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-        createOverlay()
+
+        // 1. 弹出对话框，证明新代码已运行
+        AlertDialog.Builder(this)
+            .setTitle("✅ 新悬浮窗已激活")
+            .setMessage("如果你看到这个弹窗，说明代码已更新。\n点击确定后，会显示一个红色方块悬浮窗。")
+            .setPositiveButton("确定") { _, _ ->
+                createRedOverlay() // 然后显示一个红色方块
+            }
+            .setCancelable(false)
+            .create()
+            .apply {
+                window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            }
+            .show()
     }
 
-    private fun createOverlay() {
-        if (!Settings.canDrawOverlays(this)) {
-            stopSelf()
-            return
-        }
-
-        layoutParams = WindowManager.LayoutParams(
-            rectW.toInt(), rectH.toInt(),
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else WindowManager.LayoutParams.TYPE_PHONE,
+    private fun createRedOverlay() {
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = WindowManager.LayoutParams(
+            300, 200,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = rectX.toInt()
-            y = rectY.toInt()
-        }
+        ).apply { gravity = Gravity.CENTER }
 
-        val ctx = this
-
-        // 半透明矩形背景
-        val rectBackground = View(ctx).apply {
-            background = GradientDrawable().apply {
-                setColor(Color.argb(60, 255, 255, 255))
-                setStroke(2, Color.argb(200, 100, 200, 255))
-                cornerRadius = 8f
-            }
-        }
-
-        // 方向键面板
-        val btnPanel = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-        val btnUp = makeArrowButton("▲") { adjustPosition(0f, -moveStep) }
-        val midRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        val btnLeft = makeArrowButton("◀") { adjustPosition(-moveStep, 0f) }
-        val btnRight = makeArrowButton("▶") { adjustPosition(moveStep, 0f) }
-        midRow.addView(btnLeft)
-        midRow.addView(btnRight)
-        val btnDown = makeArrowButton("▼") { adjustPosition(0f, moveStep) }
-        btnPanel.addView(btnUp)
-        btnPanel.addView(midRow)
-        btnPanel.addView(btnDown)
-
-        // 保存按钮
-        val saveBtn = Button(ctx).apply {
-            text = "保存"
+        val redView = TextView(this).apply {
+            text = "这是新悬浮窗！"
             setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.argb(200, 100, 100, 100))
-                cornerRadius = 20f
-            }
-            setOnClickListener { saveCalibration() }
-        }
-
-        // 右下角拖拽手柄
-        val handle = TextView(ctx).apply {
-            text = "◢"
-            setTextColor(Color.argb(255, 0, 120, 255))
-            textSize = 24f
+            background = GradientDrawable().apply { setColor(Color.RED); cornerRadius = 16f }
             gravity = Gravity.CENTER
-            setPadding(8, 8, 8, 8)
-            background = GradientDrawable().apply {
-                setColor(Color.argb(100, 0, 0, 0))
-                cornerRadius = 8f
-            }
-            setOnTouchListener(handleTouchListener)
         }
-
-        val root = RelativeLayout(ctx).apply {
-            addView(rectBackground, RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT))
-
-            // 方向键居中
-            val panelParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply { addRule(RelativeLayout.CENTER_IN_PARENT) }
-            addView(btnPanel, panelParams)
-
-            // 保存按钮底部居中
-            val saveParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                addRule(RelativeLayout.CENTER_HORIZONTAL)
-                bottomMargin = 50
-            }
-            addView(saveBtn, saveParams)
-
-            // 右下角手柄
-            val handleParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                addRule(RelativeLayout.ALIGN_PARENT_RIGHT)
-            }
-            addView(handle, handleParams)
-        }
-
-        // 整体拖动
-        root.setOnTouchListener(overallDragListener)
-
-        wm.addView(root, layoutParams)
-        rootView = root
-    }
-
-    // 整体拖动的触摸监听器
-    private val overallDragListener = View.OnTouchListener { v, event ->
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                v.tag = floatArrayOf(event.rawX, event.rawY, layoutParams!!.x.toFloat(), layoutParams!!.y.toFloat())
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val data = v.tag as FloatArray
-                val dx = event.rawX - data[0]
-                val dy = event.rawY - data[1]
-                rectX = data[2] + dx
-                rectY = data[3] + dy
-                layoutParams!!.x = rectX.toInt()
-                layoutParams!!.y = rectY.toInt()
-                wm.updateViewLayout(rootView, layoutParams)
-                true
-            }
-            else -> false
-        }
-    }
-
-    // 右下角拖拽调整大小
-    private val handleTouchListener = View.OnTouchListener { v, event ->
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                v.tag = floatArrayOf(event.rawX, event.rawY, rectW, rectH)
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val data = v.tag as FloatArray
-                val dx = event.rawX - data[0]
-                val dy = event.rawY - data[1]
-                rectW = (data[2] + dx).coerceAtLeast(150f)
-                rectH = (data[3] + dy).coerceAtLeast(100f)
-                layoutParams!!.width = rectW.toInt()
-                layoutParams!!.height = rectH.toInt()
-                wm.updateViewLayout(rootView, layoutParams)
-                true
-            }
-            else -> false
-        }
-    }
-
-    private fun adjustPosition(dx: Float, dy: Float) {
-        rectX += dx
-        rectY += dy
-        layoutParams!!.x = rectX.toInt()
-        layoutParams!!.y = rectY.toInt()
-        wm.updateViewLayout(rootView, layoutParams)
-    }
-
-    private fun makeArrowButton(label: String, action: () -> Unit): Button {
-        return Button(this).apply {
-            text = label
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.argb(150, 80, 80, 80))
-                cornerRadius = 8f
-            }
-            setOnClickListener { action() }
-        }
-    }
-
-    private fun saveCalibration() {
-        val prefs = getSharedPreferences("calibration", MODE_PRIVATE)
-        val tlx = rectX
-        val tly = rectY
-        val trx = rectX + rectW
-        val try_ = rectY
-        val blx = rectX
-        val bly = rectY + rectH
-        val brx = rectX + rectW
-        val bry = rectY + rectH
-
-        prefs.edit().apply {
-            putFloat("tlx", tlx); putFloat("tly", tly)
-            putFloat("trx", trx); putFloat("try_", try_)
-            putFloat("blx", blx); putFloat("bly", bly)
-            putFloat("brx", brx); putFloat("bry", bry)
-            apply()
-        }
-        EventBus.emitCalibrationUpdated(floatArrayOf(tlx, tly, trx, try_, blx, bly, brx, bry))
-        Toast.makeText(this, "校准数据已保存", Toast.LENGTH_SHORT).show()
-        LogManager.geo("💾 校准矩形: ${rectX},${rectY} ${rectW}x${rectH}")
+        wm.addView(redView, params)
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel(CHANNEL_ID, "校准悬浮窗", NotificationManager.IMPORTANCE_LOW).apply {
-                setShowBadge(false)
+            NotificationChannel(CHANNEL_ID, "测试", NotificationManager.IMPORTANCE_LOW).apply {
                 (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(this)
             }
         }
@@ -277,8 +90,8 @@ class FloatingService : Service() {
         val pi = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("校准框运行中")
-                .setContentText("拖拽手柄调整大小")
+                .setContentTitle("新服务正在运行")
+                .setContentText("红色方块已显示")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .setContentIntent(pi)
@@ -286,8 +99,8 @@ class FloatingService : Service() {
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("校准框运行中")
-                .setContentText("拖拽手柄调整大小")
+                .setContentTitle("新服务正在运行")
+                .setContentText("红色方块已显示")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .setContentIntent(pi)
@@ -295,11 +108,10 @@ class FloatingService : Service() {
         }
     }
 
+    override fun onBind(intent: Intent?) = null
+
     override fun onDestroy() {
         super.onDestroy()
-        instance = null
-        rootView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        // 简单处理，不清理视图
     }
-
-    override fun onBind(intent: Intent?): IBinder? = null
 }
