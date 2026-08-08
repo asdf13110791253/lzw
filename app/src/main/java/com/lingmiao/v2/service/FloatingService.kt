@@ -5,7 +5,7 @@ import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent // 🔥 补上了这行
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -17,12 +17,18 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import com.lingmiao.v2.LingMiaoApp // 🔥 引入全局渠道定义
 
 class FloatingService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 1002
-        private const val CHANNEL_ID = "floating_service_channel"
+        
+        // 🔥【关键修复】：之前您缺失的 start 方法，它必须存在！
+        fun start(context: Context) {
+            val intent = Intent(context, FloatingService::class.java)
+            context.startForegroundService(intent)
+        }
 
         fun stop(context: Context) {
             context.stopService(Intent(context, FloatingService::class.java))
@@ -34,10 +40,10 @@ class FloatingService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        // 弹出对话框，证明新代码已运行
+        // 弹出一个测试对话框，证明服务已经启动
         val dialog = AlertDialog.Builder(this)
-            .setTitle("✅ 新悬浮窗已激活")
-            .setMessage("如果你看到这个弹窗，说明代码已更新。\n点击确定后，会显示一个红色方块悬浮窗。")
+            .setTitle("✅ 悬浮窗服务已激活")
+            .setMessage("代码已成功更新并运行。\n点击确定后，屏幕中央会显示一个红色方块。")
             .setPositiveButton("确定") { _, _ ->
                 createRedOverlay()
             }
@@ -61,7 +67,7 @@ class FloatingService : Service() {
         }
 
         val redView = TextView(this).apply {
-            text = "这是新悬浮窗！"
+            text = "这是新的红色悬浮窗！"
             setTextColor(Color.WHITE)
             setPadding(20, 20, 20, 20)
             background = android.graphics.drawable.GradientDrawable().apply {
@@ -76,13 +82,18 @@ class FloatingService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "悬浮窗服务",
-                NotificationManager.IMPORTANCE_LOW
-            )
             val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+            // 🔥 优化：直接调用 LingMiaoApp 定义好的渠道常量，避免多个渠道冲突
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    LingMiaoApp.CHANNEL_OVERLAY,
+                    "灵喵-悬浮辅助",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "显示台球辅助瞄准线"
+                    setShowBadge(false)
+                }
+            )
         }
     }
 
@@ -97,9 +108,10 @@ class FloatingService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("新服务正在运行")
-            .setContentText("红色方块已显示")
+        // 🔥 优化：统一使用 LingMiaoApp 的渠道 ID
+        return NotificationCompat.Builder(this, LingMiaoApp.CHANNEL_OVERLAY)
+            .setContentTitle("灵喵-悬浮辅助")
+            .setContentText("红色测试方块已显示")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
