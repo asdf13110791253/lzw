@@ -29,12 +29,9 @@ import androidx.core.content.ContextCompat
 import com.lingmiao.v2.config.AppConfig
 import com.lingmiao.v2.utils.LogManager
 import com.lingmiao.v2.service.FloatingService
-import com.lingmiao.v2.service.ScreenCaptureService
-import com.lingmiao.v2.ui.theme.LingMiaoTheme // 🔥 统一从外部引用 Theme，解决重复定义冲突
+import com.lingmiao.v2.service.CaptureService // 🔥 替换了 ScreenCaptureService
+import com.lingmiao.v2.ui.theme.LingMiaoTheme
 
-/**
- * 新手引导页（权限授权引导）
- */
 class GuideActivity : ComponentActivity() {
 
     private val overlayLauncher = registerForActivityResult(
@@ -52,7 +49,7 @@ class GuideActivity : ComponentActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             LogManager.i("Guide", "✅ 录屏权限已授予")
-            ScreenCaptureService.start(this, result.resultCode, result.data!!)
+            CaptureService.start(this, result.resultCode, result.data!!) // 🔥 替换调用
             nextStep()
         }
     }
@@ -121,8 +118,6 @@ class GuideActivity : ComponentActivity() {
         finish()
     }
 }
-
-// 🔥 重要：删除了原先这里重复定义的 `fun LingMiaoTheme`，统一使用上面 import 的 Theme
 
 @Composable
 fun GuideScreen(
