@@ -22,8 +22,6 @@ object EventBus {
         _events.emit(Event(type, data))
     }
 
-    companion object {
-        // 定义常用的全局事件类型常量
-        const val EVT_TOAST = "EVT_TOAST"
-    }
+    // 🔥 修复：直接在 object 内部定义常量，禁止使用 companion object
+    const val EVT_TOAST = "EVT_TOAST"
 }
