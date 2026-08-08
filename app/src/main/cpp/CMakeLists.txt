@@ -52,9 +52,10 @@ target_compile_options(
     -fvisibility=hidden
 )
 
-# ===== 架构特定优化 =====
+# ===== 架构特定优化（已修复 NDK 26 不兼容的写法） =====
 if(ANDROID_ABI STREQUAL "arm64-v8a")
-    target_compile_options(lingmiao_native PRIVATE -march=armv8-a+fp+simd -mtune=cortex-a75)
+    target_compile_options(lingmiao_native PRIVATE -march=armv8-a -mtune=cortex-a75)
 elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-    target_compile_options(lingmiao_native PRIVATE -march=armv7-a+neon -mfpu=neon-vfpv4 -mtune=cortex-a15)
+    # 修复：NDK 26 不支持 -march=armv7-a+neon，改为标准写法
+    target_compile_options(lingmiao_native PRIVATE -march=armv7-a -mfpu=neon -mtune=cortex-a15)
 endif()
