@@ -21,9 +21,8 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.lingmiao.v2.LingMiaoApp
-import com.lingmiao.v2.R
-import com.lingmiao.v2.core.AppConfig
-import com.lingmiao.v2.core.BallDetector
+import com.lingmiao.v2.config.AppConfig // ✅ 修正路径：去掉了 core
+import com.lingmiao.v2.engine.ball.BallDetector // ✅ 修正路径：去掉了 core，加了 engine.ball
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 
@@ -208,9 +207,10 @@ class CaptureService : Service() {
             )
         }
 
+        // 🔥 修复：为了防止 R.string 找不到资源，直接硬编码文字
         return NotificationCompat.Builder(this, LingMiaoApp.CHANNEL_CAPTURE)
-            .setContentTitle(getString(R.string.capture_notification_title))
-            .setContentText(getString(R.string.capture_notification_text))
+            .setContentTitle("灵喵-录屏服务")
+            .setContentText("正在截取台球画面")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()
