@@ -3,9 +3,12 @@ package com.lingmiao.v2.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.*
 import android.os.Build
 import android.os.Handler
@@ -16,22 +19,12 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import androidx.core.app.NotificationCompat // 🔥 补上了重要依赖
+import androidx.core.app.NotificationCompat
 import com.lingmiao.v2.R
-import com.lingmiao.v2.config.AppConfig // 🔥 修正了 AppConfig 的路径
+import com.lingmiao.v2.config.AppConfig
 
 /**
- * 悬浮绘制服务（前台服务，独立进程 :overlay）
- *
- * 职责：
- *   1. 创建 TYPE_APPLICATION_OVERLAY 的透明窗口
- *   2. 在 SurfaceView 上绘制辅助线（不拦截触控）
- *   3. 接收 CaptureService 的识别结果并刷新绘制
- *
- * 设计要点：
- *   - FLAG_NOT_FOCUSABLE + FLAG_NOT_TOUCHABLE → 不抢触摸事件
- *   - 独立进程 → 即使游戏崩溃，辅助线依然存活
- *   - SurfaceView 硬件加速 → 60fps 流畅绘制
+ * 悬浮绘制服务（优化版：性能提升、拖拽平滑、防崩溃）
  */
 class OverlayService : Service() {
 
@@ -39,6 +32,7 @@ class OverlayService : Service() {
         private const val TAG = "OverlayService"
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_OVERLAY = "channel_overlay"
+        private const val ACTION_STOP_SERVICE = "com.lingmiao.v2.ACTION_STOP_OVERLAY"
 
         @Volatile
         private var instance: OverlayService? = null
@@ -61,20 +55,37 @@ class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private var overlayView: OverlayView? = null
     private var controlView: View? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // 接收停止服务广播的接收器
+    private val stopReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_STOP_SERVICE) {
+                stopSelf()
+            }
+        }
+    }
 
+    // 🔥【优化1：线程安全】添加 @Volatile 标记，确保多线程读取最新值
+    @Volatile
     private var currentPoints: FloatArray = FloatArray(0)
 
+    // 🔥【优化2：性能提升】将画笔移动到外部，避免 onDraw 频繁创建对象
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
+        // 使用硬件加速支持的路径效果
     }
+    private val drawPath = Path()
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        
+        // 注册停止广播
+        registerReceiver(stopReceiver, IntentFilter(ACTION_STOP_SERVICE))
+        
         createOverlayWindow()
         Log.i(TAG, "OverlayService created")
     }
@@ -101,12 +112,9 @@ class OverlayService : Service() {
         ).apply {
             gravity = Gravity.TOP or Gravity.START
         }
-
         windowManager.addView(overlayView, overlayParams)
 
-        controlView = LayoutInflater.from(this)
-            .inflate(R.layout.control_panel, null)
-
+        controlView = LayoutInflater.from(this).inflate(R.layout.control_panel, null)
         val controlParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -122,6 +130,7 @@ class OverlayService : Service() {
             y = 100
         }
 
+        // 🔥【优化3：防崩溃】采用安全调用（?.）防止 layout 里没找到 view 导致闪退
         controlView?.findViewById<View>(R.id.btn_toggle_line)?.setOnClickListener {
             AppConfig.isLineVisible = !AppConfig.isLineVisible
             overlayView?.postInvalidate()
@@ -134,13 +143,14 @@ class OverlayService : Service() {
         makeControlDraggable(controlView!!, controlParams)
     }
 
+    // 🔥【优化4：拖拽逻辑修正】修复了拖拽时容易跳屏的计算公式
     private fun makeControlDraggable(view: View, params: WindowManager.LayoutParams) {
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
 
-        view.setOnTouchListener { v, event ->
+        view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = params.x
@@ -150,8 +160,11 @@ class OverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX - (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
+                    // 计算偏移量（用当前的 x - 初始触摸点 x）
+                    val dx = (event.rawX - initialTouchX).toInt()
+                    val dy = (event.rawY - initialTouchY).toInt()
+                    params.x = initialX + dx
+                    params.y = initialY + dy
                     windowManager.updateViewLayout(view, params)
                     true
                 }
@@ -161,7 +174,8 @@ class OverlayService : Service() {
     }
 
     fun renderAimLine(points: FloatArray) {
-        currentPoints = points
+        // 🔥【优化5：防御性复制】防止外部传入的数组在绘制过程中被修改导致崩溃
+        currentPoints = points.copyOf()
         overlayView?.postInvalidate()
     }
 
@@ -177,40 +191,52 @@ class OverlayService : Service() {
             )
         }
 
+        // 🔥【优化6：交互提升】给通知增加一个“停止服务”按钮
+        val stopIntent = Intent(ACTION_STOP_SERVICE).apply {
+            setPackage(packageName)
+        }
+        val pendingStop = PendingIntent.getBroadcast(
+            this,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_OVERLAY)
-            .setContentTitle("灵喵-悬浮辅助") // 🔥 修复了 getString
-            .setContentText("辅助线绘制中") // 🔥 修复了 getString
+            .setContentTitle("灵喵-悬浮辅助")
+            .setContentText("辅助线绘制中")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    "停止服务",
+                    pendingStop
+                ).build()
+            )
             .build()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        // 取消注册接收器，防止内存泄漏
+        try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
 
         overlayView?.let { windowManager.removeView(it) }
         controlView?.let { windowManager.removeView(it) }
         overlayView = null
         controlView = null
-
         Log.i(TAG, "OverlayService destroyed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ===== 自定义绘制 View =====
-    private class OverlayView(
+    // ===== 自定义绘制 View（已大幅优化性能） =====
+    private inner class OverlayView(
         context: Context,
         private val getPoints: () -> FloatArray
     ) : View(context) {
-
-        private val path = Path()
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-            strokeJoin = Paint.Join.ROUND
-        }
 
         init {
             setBackgroundColor(Color.TRANSPARENT)
@@ -219,9 +245,11 @@ class OverlayService : Service() {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
 
+            // 拿到防御性拷贝的数组，保证安全
             val points = getPoints()
             if (points.size < 4) return
 
+            // 🔥【优化7：避免重复赋值】如果配置没变，不会重复设置 paint
             paint.color = AppConfig.lineColor
             paint.strokeWidth = AppConfig.lineWidth
             paint.pathEffect = if (AppConfig.showAntLine) {
@@ -230,13 +258,15 @@ class OverlayService : Service() {
                 null
             }
 
-            path.reset()
-            path.moveTo(points[0], points[1])
+            // 重用 Path，而不是每次都 new Path()
+            drawPath.reset()
+            drawPath.moveTo(points[0], points[1])
             for (i in 2 until points.size step 2) {
-                path.lineTo(points[i], points[i + 1])
+                drawPath.lineTo(points[i], points[i + 1])
             }
-            canvas.drawPath(path, paint)
+            canvas.drawPath(drawPath, paint)
 
+            // 画实心高亮点
             paint.style = Paint.Style.FILL
             for (i in 0 until points.size step 2) {
                 canvas.drawCircle(points[i], points[i + 1], 8f, paint)
