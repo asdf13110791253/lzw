@@ -26,13 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.lingmiao.v2.config.AppConfig // ✅ 路径已修正
-import com.lingmiao.v2.utils.LogManager // ✅ 路径已修正
+import com.lingmiao.v2.config.AppConfig
+import com.lingmiao.v2.utils.LogManager
 import com.lingmiao.v2.service.FloatingService
-
-// ⚠️ 如果之前缺少 ScreenCaptureService，需要补齐这个类，否则这里会报错。
-// 如果需要，我可以把它的空壳代码给您。
 import com.lingmiao.v2.service.ScreenCaptureService
+import com.lingmiao.v2.ui.theme.LingMiaoTheme // 🔥 统一从外部引用 Theme，解决重复定义冲突
 
 /**
  * 新手引导页（权限授权引导）
@@ -70,7 +68,6 @@ class GuideActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            // ✅ 使用内置的 Theme 定义，避免因找不到引用而出错
             LingMiaoTheme {
                 GuideScreen(
                     onRequestOverlay = { requestOverlayPermission() },
@@ -125,16 +122,7 @@ class GuideActivity : ComponentActivity() {
     }
 }
 
-// ✅ 内置一个可用的 Theme，取代原本外部引用的 Theme
-@Composable
-fun LingMiaoTheme(content: @Composable () -> Unit) {
-    val colorScheme = lightColorScheme(
-        primary = Color(0xFF6200EE),
-        secondary = Color(0xFF03DAC5),
-        background = Color(0xFFF5F5F5)
-    )
-    MaterialTheme(colorScheme = colorScheme, content = content)
-}
+// 🔥 重要：删除了原先这里重复定义的 `fun LingMiaoTheme`，统一使用上面 import 的 Theme
 
 @Composable
 fun GuideScreen(
