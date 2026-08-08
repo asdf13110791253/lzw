@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt") // 【新增】必须加这行，否则等会 Room 编译不了
 }
 
 android {
@@ -50,10 +51,9 @@ android {
 
     kotlinOptions { jvmTarget = "17" }
 
-    // AGP原生Compose编译器配置，优先级高于所有插件/依赖，官方推荐用法
     composeCompiler {
-        version = "1.5.14" // 和Kotlin 1.9.24官方匹配版本
-        suppressKotlinVersionCompatibilityCheck = true // 双重兼容开关
+        version = "1.5.14"
+        suppressKotlinVersionCompatibilityCheck = true
     }
 
     externalNativeBuild {
@@ -66,22 +66,31 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
-            excludes += "**/libc++_shared.so" // 解决SO重复问题
+            excludes += "**/libc++_shared.so"
         }
     }
 }
 
 dependencies {
-    // Compose依赖全固定，无动态版本
+    // Compose 依赖
     implementation("androidx.compose.ui:ui:1.6.7")
     implementation("androidx.compose.ui:ui-graphics:1.6.7")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
     implementation("androidx.compose.material3:material3:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
+    
     // 基础依赖
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-compose:1.9.1")
     implementation("org.opencv:opencv:4.9.0")
+
+    // ==========================================================
+    // 【新增】：修复之前日志里疯狂报错找不到的 Room 和协程依赖
+    // ==========================================================
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
