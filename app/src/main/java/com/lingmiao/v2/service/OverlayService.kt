@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log // 🔥 补上了缺失的 android.util.Log 导入
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
