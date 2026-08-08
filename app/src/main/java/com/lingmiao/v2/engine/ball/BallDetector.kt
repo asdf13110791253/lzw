@@ -1,8 +1,8 @@
 package com.lingmiao.v2.engine.ball
 
 import android.graphics.Bitmap
-import com.lingmiao.v2.core.config.AppConfig
-import com.lingmiao.v2.core.log.LogManager
+import com.lingmiao.v2.config.AppConfig // ✅ 修正了 AppConfig 的路径
+import com.lingmiao.v2.utils.LogManager // ✅ 修正了 LogManager 的路径
 import kotlin.math.PI
 import kotlin.math.sqrt
 import java.util.ArrayDeque
@@ -31,9 +31,10 @@ object BallDetector {
 
     fun init() {
         try {
-            System.loadLibrary("lingmiao_engine")
+            // 🔥 修正：加载库名与 CMakeLists.txt 里的 target 保持一致
+            System.loadLibrary("lingmiao_native")
             nativeAvailable = true
-            LogManager.native("✅ BallDetector native 初始化成功")
+            LogManager.i(TAG, "✅ BallDetector native 初始化成功")
         } catch (e: UnsatisfiedLinkError) {
             nativeAvailable = false
             LogManager.w(TAG, "⚠️ Native 库不可用，使用 CPU 模式")
@@ -148,7 +149,6 @@ object BallDetector {
             sumY += y
             count += 1
 
-            // 强制转Int，彻底消除Long类型报错
             val left = (idx - 1).toInt()
             val right = (idx + 1).toInt()
             val up = (idx - w).toInt()
