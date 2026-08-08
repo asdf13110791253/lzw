@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent // 🔥 补上了这行，解决了找不到 setContent 的报错
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,8 +22,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp // 🔥 补上了 sp 的导入
-import com.lingmiao.v2.config.AppConfig // 🔥 修正了 AppConfig 的路径
+import androidx.compose.ui.unit.sp
+import com.lingmiao.v2.config.AppConfig
 
 /**
  * 桌布校准 Activity
