@@ -2,6 +2,7 @@ package com.lingmiao.v2.data.dao
 
 import androidx.lifecycle.LiveData
 import androidx.room.*
+import androidx.room.OnConflictStrategy // 🔥 补上了缺失的导入
 import com.lingmiao.v2.data.entity.CalibrationEntity
 
 @Dao
