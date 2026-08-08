@@ -19,6 +19,7 @@
  */
 
 #include <jni.h>
+#include <android/log.h>     // 【已修复】必须加这行，否则找不到 ANDROID_LOG_INFO
 #include <cmath>
 #include <vector>
 #include <algorithm>
