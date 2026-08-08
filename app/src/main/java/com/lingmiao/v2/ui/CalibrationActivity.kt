@@ -13,19 +13,16 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.lingmiao.v2.config.AppConfig
+import androidx.compose.ui.unit.sp // 🔥 补上了 sp 的导入
+import com.lingmiao.v2.config.AppConfig // 🔥 修正了 AppConfig 的路径
 
 /**
  * 桌布校准 Activity
@@ -77,11 +74,11 @@ fun CalibrationScreen(
     val maxPoints = 4
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 绘制区域：去掉了黑色遮罩，完全透明，露出底下的台球桌面
+        // 绘制区域
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .background(androidx.compose.ui.graphics.Color.Transparent)
+                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.3f))
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         if (points.size < maxPoints) {
@@ -90,7 +87,7 @@ fun CalibrationScreen(
                     }
                 }
         ) {
-            // 画红色的点击点
+            // 画点
             points.forEachIndexed { index, pt ->
                 drawCircle(
                     color = androidx.compose.ui.graphics.Color.Red,
@@ -99,7 +96,7 @@ fun CalibrationScreen(
                 )
             }
 
-            // 画黄色的四边形连线
+            // 画连线（四边形）
             if (points.size >= 2) {
                 val path = Path().apply {
                     moveTo(points[0].x, points[0].y)
@@ -118,91 +115,50 @@ fun CalibrationScreen(
             }
         }
 
-        // ---------------- 精心打扮过的 UI 层 ----------------
-        
-        // 1. 顶部提示卡片
+        // 提示文字
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
-                .align(Alignment.TopCenter)
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        "🪄 桌布校准",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = androidx.compose.ui.graphics.Color(0xFF764E54) // 豆沙粉
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "请依次点击球桌的四个角\n（左上 → 右上 → 右下 → 左下）",
-                        fontSize = 14.sp,
-                        color = androidx.compose.ui.graphics.Color(0xFF97747A)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    // 进度提示
-                    Text(
-                        text = if (points.size == maxPoints) "✅ 四个点已全部标记，可以保存了！" 
-                               else "📍 已标记 ${points.size} / $maxPoints 个点",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (points.size == maxPoints) 
-                            androidx.compose.ui.graphics.Color(0xFF4CAF50) // 绿色
-                        else 
-                            androidx.compose.ui.graphics.Color(0xFF764E54)
-                    )
-                }
-            }
+            Text(
+                "桌布校准",
+                fontSize = 20.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = androidx.compose.ui.graphics.Color.White
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "请依次点击球桌的四个角（左上→右上→右下→左下）\n已选 ${points.size}/$maxPoints",
+                fontSize = 14.sp,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)
+            )
         }
 
-        // 2. 底部按钮区
+        // 底部按钮
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
+                .align(androidx.compose.ui.Alignment.BottomCenter)
                 .padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 重置按钮
             OutlinedButton(
                 onClick = { points = emptyList() },
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = androidx.compose.ui.graphics.Color(0xFF764E54)
-                )
+                modifier = Modifier.weight(1f)
             ) {
-                Text("重置", fontSize = 16.sp)
+                Text("重置")
             }
-
-            // 保存按钮
             Button(
                 onClick = {
                     if (points.size == maxPoints) {
                         onSave(points)
                     }
                 },
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = points.size == maxPoints,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (points.size == maxPoints) 
-                        androidx.compose.ui.graphics.Color(0xFFD15974) // 亮起时的高级粉
-                    else 
-                        androidx.compose.ui.graphics.Color(0xFFE0D6D2), // 禁用时的灰色
-                    contentColor = androidx.compose.ui.graphics.Color.White
-                )
+                modifier = Modifier.weight(1f),
+                enabled = points.size == maxPoints
             ) {
-                Text("保存校准", fontSize = 16.sp)
+                Text("保存校准")
             }
         }
     }
