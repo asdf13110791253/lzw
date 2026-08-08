@@ -59,6 +59,14 @@ object AppConfig {
         get() = prefs.getBoolean("line_visible", true)
         set(value) = prefs.edit().putBoolean("line_visible", value).apply()
 
+    // 🔥【新增】：解决 GuideActivity 报错的缺失变量
+    var isFirstLaunch: Boolean
+        get() = prefs.getBoolean("first_launch", true)
+        set(value) = prefs.edit().putBoolean("first_launch", value).apply()
+
+    var isOverlayEnabled: Boolean
+        get() = prefs.getBoolean("overlay_enabled", false)
+        set(value) = prefs.edit().putBoolean("overlay_enabled", value).apply()
 
     // ==========================================================
     // 🔥【新增】：为 BallDetector 补全的检测模式和预设参数
