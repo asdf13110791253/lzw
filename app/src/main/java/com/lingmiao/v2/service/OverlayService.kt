@@ -16,9 +16,9 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import com.lingmiao.v2.LingMiaoApp
+import androidx.core.app.NotificationCompat // 🔥 补上了重要依赖
 import com.lingmiao.v2.R
-import com.lingmiao.v2.core.AppConfig
+import com.lingmiao.v2.config.AppConfig // 🔥 修正了 AppConfig 的路径
 
 /**
  * 悬浮绘制服务（前台服务，独立进程 :overlay）
@@ -38,8 +38,8 @@ class OverlayService : Service() {
     companion object {
         private const val TAG = "OverlayService"
         private const val NOTIFICATION_ID = 1002
+        private const val CHANNEL_OVERLAY = "channel_overlay"
 
-        // 用于在进程间通信（简单的全局变量，同 app 不同进程需用 Messenger/AIDL）
         @Volatile
         private var instance: OverlayService? = null
 
@@ -53,10 +53,6 @@ class OverlayService : Service() {
             context.stopService(intent)
         }
 
-        /**
-         * 供 CaptureService 调用（同 app 内广播或直接方法）
-         * 实际多进程场景建议用 AIDL/Messenger，这里简化为静态方法
-         */
         fun updateAimLine(points: FloatArray) {
             instance?.renderAimLine(points)
         }
@@ -67,10 +63,8 @@ class OverlayService : Service() {
     private var controlView: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // 当前要绘制的点
     private var currentPoints: FloatArray = FloatArray(0)
 
-    // 绘制参数（从 AppConfig 读取）
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -91,7 +85,6 @@ class OverlayService : Service() {
     }
 
     private fun createOverlayWindow() {
-        // 主绘制 View
         overlayView = OverlayView(this) { currentPoints }
 
         val overlayParams = WindowManager.LayoutParams(
@@ -111,7 +104,6 @@ class OverlayService : Service() {
 
         windowManager.addView(overlayView, overlayParams)
 
-        // 控制面板（可触摸，可拖动）
         controlView = LayoutInflater.from(this)
             .inflate(R.layout.control_panel, null)
 
@@ -130,7 +122,6 @@ class OverlayService : Service() {
             y = 100
         }
 
-        // 控制面板按钮绑定
         controlView?.findViewById<View>(R.id.btn_toggle_line)?.setOnClickListener {
             AppConfig.isLineVisible = !AppConfig.isLineVisible
             overlayView?.postInvalidate()
@@ -143,9 +134,6 @@ class OverlayService : Service() {
         makeControlDraggable(controlView!!, controlParams)
     }
 
-    /**
-     * 让控制面板可拖动
-     */
     private fun makeControlDraggable(view: View, params: WindowManager.LayoutParams) {
         var initialX = 0
         var initialY = 0
@@ -172,9 +160,6 @@ class OverlayService : Service() {
         }
     }
 
-    /**
-     * 接收新的瞄准点并刷新绘制
-     */
     fun renderAimLine(points: FloatArray) {
         currentPoints = points
         overlayView?.postInvalidate()
@@ -185,16 +170,16 @@ class OverlayService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(
                 NotificationChannel(
-                    LingMiaoApp.CHANNEL_OVERLAY,
+                    CHANNEL_OVERLAY,
                     "灵喵-悬浮辅助",
                     NotificationManager.IMPORTANCE_LOW
                 )
             )
         }
 
-        return NotificationCompat.Builder(this, LingMiaoApp.CHANNEL_OVERLAY)
-            .setContentTitle(getString(R.string.overlay_notification_title))
-            .setContentText(getString(R.string.overlay_notification_text))
+        return NotificationCompat.Builder(this, CHANNEL_OVERLAY)
+            .setContentTitle("灵喵-悬浮辅助") // 🔥 修复了 getString
+            .setContentText("辅助线绘制中") // 🔥 修复了 getString
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()
@@ -235,9 +220,8 @@ class OverlayService : Service() {
             super.onDraw(canvas)
 
             val points = getPoints()
-            if (points.size < 4) return // 至少需要两个点（白球→目标球）
+            if (points.size < 4) return
 
-            // 从配置读取绘制参数
             paint.color = AppConfig.lineColor
             paint.strokeWidth = AppConfig.lineWidth
             paint.pathEffect = if (AppConfig.showAntLine) {
@@ -246,7 +230,6 @@ class OverlayService : Service() {
                 null
             }
 
-            // 画连线
             path.reset()
             path.moveTo(points[0], points[1])
             for (i in 2 until points.size step 2) {
@@ -254,7 +237,6 @@ class OverlayService : Service() {
             }
             canvas.drawPath(path, paint)
 
-            // 画关键点（实心圆）
             paint.style = Paint.Style.FILL
             for (i in 0 until points.size step 2) {
                 canvas.drawCircle(points[i], points[i + 1], 8f, paint)
