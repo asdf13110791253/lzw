@@ -7,7 +7,6 @@ import kotlin.math.PI
 import kotlin.math.sqrt
 import java.util.ArrayDeque
 
-// 🔥 新增：CaptureService 需要的数据类
 data class AimLineResult(val rawPoints: FloatArray)
 
 object BallDetector {
@@ -23,12 +22,6 @@ object BallDetector {
         val ballType: Int,
         val color: Int
     )
-
-    const val MODE_HAAR: Int = 0
-    const val MODE_HSV: Int = 1
-    const val MODE_EDGE: Int = 2
-    const val MODE_TFLITE: Int = 3
-    const val MODE_FUSION: Int = 4
 
     private var nativeAvailable = false
 
@@ -88,7 +81,6 @@ object BallDetector {
         val minR: Int = 10
         val maxR: Int = 25
         val threshold: Int = preset.vThreshold
-
         val step: Int = 3
         val visited = BooleanArray(w * h)
 
@@ -125,9 +117,7 @@ object BallDetector {
             }
         }
 
-        val result = balls.take(22)
-        LogManager.detect("CPU 检测到 ${result.size} 个球 (mode=$mode)")
-        return result
+        return balls.take(22)
     }
 
     private fun growRegion(
@@ -179,10 +169,8 @@ object BallDetector {
         return Pair(intArrayOf(sumX, sumY, areaNum), radius)
     }
 
-    // 🔥 新增：这是 CaptureService 调用的核心计算方法
     fun computeAimLine(detectedBalls: List<DetectedBall>): AimLineResult? {
         if (detectedBalls.size < 2) return null
-        // 模拟延长线计算（未来可用 C++ 实现）
         val cue = detectedBalls.firstOrNull { it.isCueBall } ?: detectedBalls[0]
         val target = detectedBalls.firstOrNull { !it.isCueBall } ?: detectedBalls[1]
 
@@ -191,11 +179,10 @@ object BallDetector {
         val length = sqrt(dx * dx + dy * dy)
         if (length == 0f) return null
 
-        val extended = 200f // 延长200像素
+        val extended = 200f
         val endX = target.x + (dx / length) * extended
         val endY = target.y + (dy / length) * extended
 
-        // 返回6个点的坐标：白球x,y 目标球x,y 延长线终点x,y
         return AimLineResult(floatArrayOf(cue.x, cue.y, target.x, target.y, endX, endY))
     }
 
