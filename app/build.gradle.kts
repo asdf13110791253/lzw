@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt") // 【新增】必须加这行，否则等会 Room 编译不了
+    id("kotlin-kapt") // 🔥 必须保留！
 }
 
 android {
@@ -86,11 +86,11 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.1")
     implementation("org.opencv:opencv:4.9.0")
 
-    // ==========================================================
-    // 【新增】：修复之前日志里疯狂报错找不到的 Room 和协程依赖
-    // ==========================================================
+    // Room 数据库依赖
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1") // 🔥 这行必须有！
+
+    // 协程依赖
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
