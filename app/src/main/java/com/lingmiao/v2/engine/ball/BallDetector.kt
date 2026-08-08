@@ -1,11 +1,14 @@
 package com.lingmiao.v2.engine.ball
 
 import android.graphics.Bitmap
-import com.lingmiao.v2.config.AppConfig // ✅ 修正了 AppConfig 的路径
-import com.lingmiao.v2.utils.LogManager // ✅ 修正了 LogManager 的路径
+import com.lingmiao.v2.config.AppConfig
+import com.lingmiao.v2.utils.LogManager
 import kotlin.math.PI
 import kotlin.math.sqrt
 import java.util.ArrayDeque
+
+// 🔥 新增：CaptureService 需要的数据类
+data class AimLineResult(val rawPoints: FloatArray)
 
 object BallDetector {
 
@@ -31,7 +34,6 @@ object BallDetector {
 
     fun init() {
         try {
-            // 🔥 修正：加载库名与 CMakeLists.txt 里的 target 保持一致
             System.loadLibrary("lingmiao_native")
             nativeAvailable = true
             LogManager.i(TAG, "✅ BallDetector native 初始化成功")
@@ -175,6 +177,26 @@ object BallDetector {
         val radiusCalc: Int = sqrt(areaNum.toDouble() / PI).toInt()
         val radius: Int = if (radiusCalc < 5) 5 else radiusCalc
         return Pair(intArrayOf(sumX, sumY, areaNum), radius)
+    }
+
+    // 🔥 新增：这是 CaptureService 调用的核心计算方法
+    fun computeAimLine(detectedBalls: List<DetectedBall>): AimLineResult? {
+        if (detectedBalls.size < 2) return null
+        // 模拟延长线计算（未来可用 C++ 实现）
+        val cue = detectedBalls.firstOrNull { it.isCueBall } ?: detectedBalls[0]
+        val target = detectedBalls.firstOrNull { !it.isCueBall } ?: detectedBalls[1]
+
+        val dx = target.x - cue.x
+        val dy = target.y - cue.y
+        val length = sqrt(dx * dx + dy * dy)
+        if (length == 0f) return null
+
+        val extended = 200f // 延长200像素
+        val endX = target.x + (dx / length) * extended
+        val endY = target.y + (dy / length) * extended
+
+        // 返回6个点的坐标：白球x,y 目标球x,y 延长线终点x,y
+        return AimLineResult(floatArrayOf(cue.x, cue.y, target.x, target.y, endX, endY))
     }
 
     private external fun detectBallsNative(
