@@ -1,4 +1,3 @@
-
 package com.lingmiao.v2.config
 
 import android.content.Context
@@ -16,8 +15,8 @@ import com.lingmiao.v2.LingMiaoApp
  */
 object AppConfig {
 
-    // 用最新的原生方式获取 SharedPreferences，替代弃用的 PreferenceManager
-    private val prefs: SharedPreferences by lazy {
+    // 🔥【重要修复】：去掉了 private，否则其他页面读取配置会闪退
+    val prefs: SharedPreferences by lazy {
         LingMiaoApp.getInstance().getSharedPreferences("lingmiao_config", Context.MODE_PRIVATE)
     }
 
@@ -59,4 +58,28 @@ object AppConfig {
     var isLineVisible: Boolean
         get() = prefs.getBoolean("line_visible", true)
         set(value) = prefs.edit().putBoolean("line_visible", value).apply()
+
+
+    // ==========================================================
+    // 🔥【新增】：为 BallDetector 补全的检测模式和预设参数
+    // ==========================================================
+    var detectMode: Int = 0
+
+    data class Preset(
+        val name: String,
+        val vThreshold: Int,
+        val sMinDist: Int,
+        val pSensitivity: Int,
+        val dp: Float
+    )
+
+    fun getCurrentPreset(): Preset {
+        return when (detectMode) {
+            0 -> Preset("标准室内", 200, 30, 15, 2f)
+            1 -> Preset("强光室内", 230, 40, 10, 2f)
+            2 -> Preset("暗光模式", 180, 20, 20, 3f)
+            3 -> Preset("高对比度", 240, 50, 5, 1f)
+            else -> Preset("标准室内", 200, 30, 15, 2f)
+        }
+    }
 }
