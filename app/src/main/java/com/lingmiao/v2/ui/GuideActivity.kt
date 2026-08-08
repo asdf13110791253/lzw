@@ -26,15 +26,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.lingmiao.v2.core.config.AppConfig
-import com.lingmiao.v2.core.log.LogManager
+import com.lingmiao.v2.config.AppConfig // ✅ 路径已修正
+import com.lingmiao.v2.utils.LogManager // ✅ 路径已修正
 import com.lingmiao.v2.service.FloatingService
+
+// ⚠️ 如果之前缺少 ScreenCaptureService，需要补齐这个类，否则这里会报错。
+// 如果需要，我可以把它的空壳代码给您。
 import com.lingmiao.v2.service.ScreenCaptureService
-import com.lingmiao.v2.ui.theme.LingMiaoTheme
 
+/**
+ * 新手引导页（权限授权引导）
+ */
 class GuideActivity : ComponentActivity() {
-
-    private var mediaProjectionResult: ((Int, Intent?) -> Unit)? = null
 
     private val overlayLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -67,6 +70,7 @@ class GuideActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
+            // ✅ 使用内置的 Theme 定义，避免因找不到引用而出错
             LingMiaoTheme {
                 GuideScreen(
                     onRequestOverlay = { requestOverlayPermission() },
@@ -119,6 +123,17 @@ class GuideActivity : ComponentActivity() {
         AppConfig.isOverlayEnabled = true
         finish()
     }
+}
+
+// ✅ 内置一个可用的 Theme，取代原本外部引用的 Theme
+@Composable
+fun LingMiaoTheme(content: @Composable () -> Unit) {
+    val colorScheme = lightColorScheme(
+        primary = Color(0xFF6200EE),
+        secondary = Color(0xFF03DAC5),
+        background = Color(0xFFF5F5F5)
+    )
+    MaterialTheme(colorScheme = colorScheme, content = content)
 }
 
 @Composable
