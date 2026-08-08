@@ -5,6 +5,7 @@
  */
 
 #include <jni.h>
+#include <android/bitmap.h>  // 【已修复】必须加这行，不然找不到 AndroidBitmapInfo
 #include <cmath>
 #include <cstring>
 
