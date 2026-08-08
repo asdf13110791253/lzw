@@ -21,7 +21,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import com.lingmiao.v2.core.AppConfig
+import androidx.compose.ui.unit.sp // 🔥 补上了 sp 的导入
+import com.lingmiao.v2.config.AppConfig // 🔥 修正了 AppConfig 的路径
 
 /**
  * 桌布校准 Activity
@@ -93,7 +94,6 @@ fun CalibrationScreen(
                     radius = 12f,
                     center = pt
                 )
-                // 画序号
             }
 
             // 画连线（四边形）
