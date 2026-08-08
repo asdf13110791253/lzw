@@ -34,7 +34,6 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "ndk;26.1.10909125" "build-tools;30.0.3" "platforms;android-33"
 
-      # 手动安装 Gradle 8.9，为修复 wrapper 做准备
       - name: Install Gradle 8.9
         run: |
           wget https://services.gradle.org/distributions/gradle-8.9-bin.zip -O gradle.zip
@@ -42,13 +41,14 @@ jobs:
           echo "GRADLE_HOME=/opt/gradle/gradle-8.9" >> $GITHUB_ENV
           echo "$GRADLE_HOME/bin" >> $GITHUB_PATH
 
-      # 🔥【关键修复步骤】无论你上传的 jar 有多损坏，这里都会重新生成一个绝对正确的
+      # 🔥【终极修复】这里强制指定生成 8.7 版本的 wrapper
       - name: Regenerate clean gradle-wrapper.jar
         run: |
           cd gradle/wrapper
           rm -f gradle-wrapper.jar
           cd ../..
-          gradle wrapper --gradle-version 8.5
+          # 注意这里已改成 8.7！
+          gradle wrapper --gradle-version 8.7
 
       - name: Clean Gradle Cache
         run: |
