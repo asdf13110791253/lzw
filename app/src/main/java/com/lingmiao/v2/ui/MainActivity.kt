@@ -1,6 +1,8 @@
 package com.lingmiao.v2.ui
 
+import android.Manifest // 🔥 补上了这行
 import android.content.Intent
+import android.content.pm.PackageManager // 🔥 补上了这行
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,12 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.lingmiao.v2.config.AppConfig // 🔥 预留了 AppConfig 的导入
 import com.lingmiao.v2.service.CapturePermissionActivity
 import com.lingmiao.v2.service.FloatingService
 import com.lingmiao.v2.service.KeepAliveService
-
-// 如果您的项目中使用了 LogManager、EventBus 或 AppConfig，
-// 请确保它们已经在您的项目中定义，并在此加上 import。
+import com.lingmiao.v2.ui.theme.LingMiaoTheme // 🔥 从外部文件统一引用主题，解决重复定义
 
 class MainActivity : ComponentActivity() {
 
@@ -52,7 +53,6 @@ class MainActivity : ComponentActivity() {
         if (Settings.canDrawOverlays(this)) {
             proceedAfterPermissions()
         } else {
-            // 权限被拒绝的提示
             // LogManager.w("Perm", "❌ 悬浮窗权限被拒绝")
         }
     }
@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // AppConfig 初始化（如果您代码里有 AppConfig 的话）
+        // AppConfig 初始化
         // AppConfig.init(this)
         // AppConfig.isFirstLaunch = false
 
@@ -85,8 +85,8 @@ class MainActivity : ComponentActivity() {
                         onStartOverlay = { checkAndRequestPermissions() },
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                         onOpenGuide = { startActivity(Intent(this, GuideActivity::class.java)) },
-                        // onTestOpenCV = { testOpenCV() }, // 如果您有测试OpenCV方法可解开此注释
-                        overlayEnabled = false // 根据您的 AppConfig 修改
+                        // onTestOpenCV = { testOpenCV() },
+                        overlayEnabled = false
                     )
                 }
             }
@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
         // LogManager.service("🎯 悬浮校准面板已启动")
     }
 
-    // 申请录屏权限 (来自原第一段代码)
+    // 申请录屏权限
     private fun requestCapturePermission() {
         val intent = CapturePermissionActivity.createIntent(this)
         captureLauncher.launch(intent)
@@ -147,15 +147,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun LingMiaoTheme(content: @Composable () -> Unit) {
-    val colorScheme = lightColorScheme(
-        primary = Color(0xFF6200EE),
-        secondary = Color(0xFF03DAC5),
-        background = Color(0xFFF5F5F5)
-    )
-    MaterialTheme(colorScheme = colorScheme, content = content)
-}
+// 🔥 注意：这里把原来多余的 `fun LingMiaoTheme(...)` 删除了，
+// 因为已经在 `com.lingmiao.v2.ui.theme.Theme.kt` 中统一定义好了。
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,14 +183,13 @@ fun MainScreen(
 
         Spacer(Modifier.height(48.dp))
 
-        // 启动辅助按钮
         Button(
             onClick = {
                 localOverlayEnabled = !localOverlayEnabled
                 if (localOverlayEnabled) {
                     onStartOverlay()
                 } else {
-                    // FloatingService.stop(context) // 如需停止服务解开注释
+                    // FloatingService.stop(context)
                     // AppConfig.isOverlayEnabled = false
                 }
             },
