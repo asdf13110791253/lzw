@@ -3,7 +3,7 @@ package com.lingmiao.v2.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.lingmiao.v2.core.log.LogManager
+import com.lingmiao.v2.utils.LogManager // 🔥 修正了 LogManager 的包路径
 import com.lingmiao.v2.service.KeepAliveService
 
 /**
